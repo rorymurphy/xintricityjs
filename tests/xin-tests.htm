@@ -1,0 +1,68 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>QUnit Example</title>
+  <link rel="stylesheet" href="../qunit/qunit.css">
+</head>
+<body>
+  <div id="qunit"></div>
+  <div id="qunit-fixture">
+      <div id="xin-mvvm-attributebinding-test">
+        <input type="text" name="testval" value="initialVal" />
+      </div>
+
+      <div id="xin-mvvm-eventtrigger-test">
+        <button>This is a trigger
+            <code data-xt-type="style-trigger" data-xt-event="click" data-xt-target=":closest('li') > div.trigger" data-xt-toggle="true" data-xt-class="open" data-xt-style="display:block;" />
+        </button>
+        <div class="trigger"></div>
+      </div>
+
+
+      <div id="xin-mvvm-template-test" class="xt-template">
+        <h2>This is test #{{model.TestNum}}, running at {{model.getTime}}</h2>
+        <p>Lets look at some albums</p>
+        <ul data-xt-foreach="{{model.Albums}}" data-xt-iterator="album">
+            <li class="{{album.Slug}}">
+                <h3>{{album.Title}}</h3>
+                <h5 data-xt-if="{{album.IsFavorite}}">Marked as Favorite</h5>
+                <h5 data-xt-else>This album sucks</h5>
+                <div class="songs" style="display:none;">
+                    <table>
+                        <tbody data-xt-foreach="{{album.Songs}}" data-xt-iterator="song">
+                            <tr data-xt-template="song-template" data-xt-model="{{song}}" />
+                        </tbody>
+                    </table>
+                </div>
+            </li>
+        </ul>
+        <p>Which was your favorite?</p>
+        <select name="favorite" data-xt-options="{{model.Albums}}" data-xt-text-field="Title" data-xt-value-field="Slug"></select>
+      </div>
+
+      <script type="text/template-xintricity" id="song-template">
+        <tr>
+            <td><input type="checkbox" value="{{model.Title}}" /></td>
+            <td>{{model.Artist}}</td>
+            <td>
+                <code data-xt-event="click" data-xt-action="{{model.Play}}" />
+                <code data-xt-event="click" data-xt-class="clicked" data-xt-style="background-color: yellow;" />
+                {{model.Title}}
+            </td>
+        </tr>
+      </script>
+      
+      <div id="xin-mvvm-textnodebinding-test">This is a {{Property1}}<p> success?</p></div>
+  </div>
+
+  <script type="text/javascript" src="external/jquery-1.8.3.min.js"></script>
+  <script type="text/javascript" src="external/underscore.js"></script>
+  <script type="text/javascript" src="external/backbone.js"></script>
+  <script type="text/javascript" src="../xin-util.js"></script>
+  <script type="text/javascript" src="../xin-template-manager.js"></script>
+  <script type="text/javascript" src="../xin-mvvm.js"></script>
+  <script type="text/javascript" src="../qunit/qunit.js"></script>
+  <script type="text/javascript" src="xin-mvvm-tests.js"></script>
+</body>
+</html>
