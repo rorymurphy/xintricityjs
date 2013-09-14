@@ -9,6 +9,67 @@
         return Backbone.Collection.prototype.isPrototypeOf(type.prototype);
     };
 
+    //Define our own extend method that uses the enhanced extend with
+    //getter and setter support
+    var extend = function(protoProps, staticProps) {
+      var parent = this;
+      var child;
+
+      // The constructor function for the new subclass is either defined by you
+      // (the "constructor" property in your `extend` definition), or defaulted
+      // by us to simply call the parent's constructor.
+      if (protoProps && _.has(protoProps, 'constructor')) {
+        child = protoProps.constructor;
+      } else {
+        child = function(){ return parent.apply(this, arguments); };
+      }
+
+      // Add static properties to the constructor function, if supplied.
+      $x.extend(child, parent, staticProps);
+
+      // Set the prototype chain to inherit from `parent`, without calling
+      // `parent`'s constructor function.
+      var Surrogate = function(){ this.constructor = child; };
+      Surrogate.prototype = parent.prototype;
+      child.prototype = new Surrogate;
+
+      // Add prototype properties (instance properties) to the subclass,
+      // if supplied.
+      if (protoProps) $x.extend(child.prototype, protoProps);
+
+      // Set a convenience property in case the parent's prototype is needed
+      // later.
+      child.__super__ = parent.prototype;
+
+      return child;
+    };
+
+    var createField = function (key, options) {
+        var t = this;
+        //Allow just the field type to be passed in rather than a full field definition
+        if (_.isFunction(options)) {
+            options = { type: options };
+            t.fields[key] = options;
+        }
+        if (t.fields && !_.has(this, 'fields')) {
+            //If this object is getting fields beyond those in its prototype
+            //Copy fields from prototype into a collection for this object
+            t.fields = $x.extend({}, t.fields);
+        }
+        if(!_.has(this.fields, key)){
+            t.fields[key] = options;
+        }
+        t.fields[key]["name"] = key;
+
+        t[key] = _.bind(function () {
+            if (arguments.length === 1) {
+                this.set(key, arguments[0]);
+            } else {
+                return this.get(key);
+            }
+        }, t);
+    };  
+  
     _.mixin({
         resultBB: function (obj, property, evaluate) {
             if (evaluate === undefined) { evaluate = true; }
@@ -29,15 +90,15 @@
             return (startPos >= 0 && val.substr(startPos) === suffix);
         }
     });
-    var mvvm = $x.namespace('$xintricity.MVVM');
+    var mvvm = $x.namespace('XMVVM');
 
     var eid_iter = 0;
     mvvm.Event = function (options) {
         this.eid = 'e' + eid_iter;
         eid_iter++;
-        _.extend(this, options);
+        $x.extend(this, options);
     };
-    mvvm.Event.extend = Backbone.Model.extend;
+    mvvm.Event.extend = extend;
     mvvm.Model = Backbone.Model.extend({
         constructor: function (attributes, options) {
             var t = this;
@@ -53,27 +114,7 @@
         },
         fields: {},
         createField: function (key, options) {
-            var t = this;
-            //Allow just the field type to be passed in rather than a full field definition
-            if (_.isFunction(options)) {
-                options = { type: options };
-                t.fields[key] = options;
-            }
-            if (!_.has(t.fields, key)) {
-                //If this object is getting fields beyond those in its prototype
-                //Copy fields from prototype into a collection for this object
-                t.fields = _.extend({}, t.fields);
-                t.fields[key] = options;
-            }
-            t.fields[key]["name"] = key;
-
-            t[key] = _.bind(function () {
-                if (arguments.length === 1) {
-                    this.set(key, arguments[0]);
-                } else {
-                    return this.get(key);
-                }
-            }, t);
+            createField.call(this, key, options);
         },
         clone: function () {
             var t = this;
@@ -84,7 +125,7 @@
             return ret;
         },
         trigger: function (event) {
-            var args = arguments;
+            var args = Array.prototype.slice.call(arguments);
             var evt;
             if (arguments.length > 1 && !(arguments[1] instanceof mvvm.Event)) {
 
@@ -131,7 +172,16 @@
                 } else {
                     Backbone.Model.prototype.trigger.apply(this, arguments);
                 }
-            } else {
+            } else if(1 == arguments.length) {
+                if(this instanceof mvvm.Model){
+                    evt = new mvvm.Event({ model: this });
+                }else if(this instanceof mvvm.Collection){
+                    evt = new mvvm.Event({ collection: this });
+                }
+                
+                args.push(evt);
+                Backbone.Model.prototype.trigger.apply(this, args);
+            }else {
                 Backbone.Model.prototype.trigger.apply(this, arguments);
             }
 
@@ -249,9 +299,22 @@
             });
 
             return res;
+        },
+                
+        extend: function(protoProps, staticProps) {
+            var obj = extend.call(this, protoProps, staticProps);
+            if(_.has(protoProps, 'fields')){
+                _.each(protoProps.fields, function(val, key){
+                    createField.call(this, key, val);
+                });
+            }
         }
     });
 
+    mvvm.Model.defaults = {
+        useGetSet : false //option to support javascript getter/setter syntax
+    };
+    
     mvvm.Collection = Backbone.Collection.extend({
         unique: function () {
             var args = array.slice.call(arguments);
@@ -282,10 +345,17 @@
             return undefined;
         }
     });
-    mvvm.ViewModel.extend = Backbone.Model.extend;
+    mvvm.ViewModel.extend = extend;
 
 
-
+    var backboneGetSet = function(name, val){
+        if(arguments.length == 1){
+            return this.get(name);
+        }else{
+            this.set(name, val);
+        }
+    };
+    
     var modelTraversalUtils = {
         splitModelPath: function (path) {
             var matches;
@@ -336,7 +406,9 @@
 
                 if (lvl instanceof Backbone.Collection) {
                     lvl = lvl.at(parts[i]);
-                } else {
+                } else if(!lvl[parts[i]] && lvl instanceof Backbone.Model){
+                    lvl = _.bind(backboneGetSet, lvl, parts[i] )
+                }else {
                     //If it is a function and this is not the leaf, or if it is the leaf and the evalVal options
                     //is set, evaluate the result if it's a function
                     if (i < parts.length - 1 || options.evalVal) {
@@ -493,23 +565,27 @@
 
             var split = _.isArray(path) ? path : this.splitModelPath(path);
             var lvls = this.resolveModelPath(model, split, { evalVal: false, allowPartial: false });
-            if (useSetter && _.isFunction(lvls[lvls.length - 1])) {
-                lvls[lvls.length - 1](value);
-            } else if (lvls[lvls.length - 1] instanceof Backbone.Collection) {
-                lvls[lvls.length - 2].update(value);
+            
+            var lvlLen = lvls.length;
+            var last = lvls[lvlLen - 1];
+            
+            if (useSetter && _.isFunction(last)) {
+                last(value);
+            } else if (last instanceof Backbone.Collection) {
+                lvls[lvlLen - 2].update(value);
             } else {
-                lvls[lvls.length - 2][split[lvls.length - 1]] = value;
+                lvls[lvlLen - 2][split[lvlLen - 1]] = value;
             }
         }
     };
 
     mvvm.Binding = function () { };
-    mvvm.Binding.extend = Backbone.Model.extend;
+    mvvm.Binding.extend = extend;
 
     mvvm.AttributeBinding = mvvm.Binding.extend({
         constructor: function (options) {
             var t = this;
-            this.options = _.extend({}, options);
+            this.options = $x.extend({}, options);
             this.options = _.defaults(this.options, this.defaults);
 
             if (t.options.model === null || t.options.path === null || t.options.el === null || t.options.attr === null) {
@@ -621,7 +697,9 @@
             if (t.options.updateElement) {
                 if (t.options.attr === 'value') {
                     t.$el.val(val);
-                } else { t.$el.attr(t.options.attr, val); }
+                } else if('data-xt-src' == t.options.attr && t.$el.is('img')){
+                    t.$el.attr('src', val)
+                }else { t.$el.attr(t.options.attr, val); }
             }
         },
         elChanged: function (evt, ui) {
@@ -633,12 +711,12 @@
             this.unbindEl();
         }
     });
-    _.extend(mvvm.AttributeBinding.prototype, modelTraversalUtils);
+    $x.extend(mvvm.AttributeBinding.prototype, modelTraversalUtils);
 
     mvvm.TextNodeBinding = mvvm.Binding.extend({
         constructor: function (options) {
             var t = this;
-            this.options = _.extend({}, options);
+            this.options = $x.extend({}, options);
             this.options = _.defaults(this.options, this.defaults);
 
             if (t.options.model === null || t.options.paths === null || t.options.paths.length === 0 || t.options.el === null || t.options.pattern == null) {
@@ -752,7 +830,7 @@
         },
 
         escapeHtml: function(unsafe) {
-            return unsafe.toString().replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+            return unsafe.toString().replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
          },
  
         dispose: function () {
@@ -765,12 +843,12 @@
             delete t._modelPaths;
         }
     });
-    _.extend(mvvm.TextNodeBinding.prototype, modelTraversalUtils);
+    $x.extend(mvvm.TextNodeBinding.prototype, modelTraversalUtils);
 
     mvvm.CssClassBinding = mvvm.Binding.extend({
         constructor: function (options) {
             var t = this;
-            this.options = _.extend({}, options);
+            this.options = $x.extend({}, options);
             this.options = _.defaults(this.options, this.defaults);
 
             if (t.options.model === null || t.options.path === null || t.options.el === null || t.options.cssClass === null) {
@@ -842,12 +920,12 @@
             this.unbindModel();
         }
     });
-    _.extend(mvvm.CssClassBinding.prototype, modelTraversalUtils);
+    $x.extend(mvvm.CssClassBinding.prototype, modelTraversalUtils);
 
     mvvm.SelectBinding = mvvm.Binding.extend({
         constructor: function (options) {
             var t = this;
-            this.options = _.extend({}, options);
+            this.options = $x.extend({}, options);
             this.options = _.defaults(this.options, this.defaults);
 
             if (t.options.model === null || t.options.path === null || t.options.el === null) {
@@ -958,7 +1036,7 @@
             this.unbindEl();
         }
     });
-    _.extend(mvvm.SelectBinding.prototype, modelTraversalUtils);
+    $x.extend(mvvm.SelectBinding.prototype, modelTraversalUtils);
 
     mvvm.Trigger = function (options) {
         var t = this;
@@ -971,7 +1049,7 @@
         t.initialize.apply(this);
     }
 
-    _.extend(mvvm.Trigger.prototype, {
+    $x.extend(mvvm.Trigger.prototype, {
         defaults: {
             el: null,
             event: 'click'
@@ -1020,7 +1098,7 @@
         }
     });
 
-    mvvm.Trigger.extend = Backbone.Model.extend;
+    mvvm.Trigger.extend = extend;
 
     mvvm.StyleTrigger = mvvm.Trigger.extend({
         initialize: function () {
@@ -1091,7 +1169,7 @@
             return $el;
         }
     });
-    _.extend(mvvm.StyleTrigger.prototype, modelTraversalUtils);
+    $x.extend(mvvm.StyleTrigger.prototype, modelTraversalUtils);
 
     mvvm.ActionTrigger = mvvm.Trigger.extend({
         defaults: {
@@ -1127,11 +1205,11 @@
             }
         }
     });
-    _.extend(mvvm.ActionTrigger.prototype, modelTraversalUtils);
+    $x.extend(mvvm.ActionTrigger.prototype, modelTraversalUtils);
 
     var tmplBlock = function (options) {
         var t = this;
-        t.options = _.extend({}, options);
+        t.options = $x.extend({}, options);
         if (arguments.length > 0) {
             _.defaults(t.options, t.defaults);
         }
@@ -1159,8 +1237,8 @@
 
     tmplBlock.attributeBindingPattern = /^\{\{[a-zA-Z][\w\._]*\}\}$/;
     tmplBlock.textBindingPattern = /\{\{([a-zA-Z][\w\._]*|([a-zA-z]\w*\s*=\s*('[^']*'|"[^"]*"),?\s*)+)\}\}/g;
-    tmplBlock.extend = Backbone.Model.extend;
-    _.extend(tmplBlock.prototype, {
+    tmplBlock.extend = extend;
+    $x.extend(tmplBlock.prototype, {
         defaults: {
             el: null,
             type: 'template'
@@ -1327,7 +1405,7 @@
                 var name = attr.name;
                 //ignore attribute bindings for xintricity attributes, element ids and elements types
                 //as these are not allowed. 
-                if (name.substr(0, 8) === 'data-xt-'
+                if ((name.substr(0, 8) === 'data-xt-' && 'data-xt-src' !== name)
                         || name === 'id'
                         || name === 'type') { return; }
 
@@ -1491,7 +1569,7 @@
 
     var tmplBlockInst = function (options) {
         var t = this;
-        t.options = _.extend({}, options);
+        t.options = $x.extend({}, options);
         if (arguments.length > 0) {
             _.defaults(t.options, t.defaults);
             if (options.el) {
@@ -1502,8 +1580,8 @@
         t.initialize();
     };
 
-    tmplBlockInst.extend = Backbone.Model.extend;
-    _.extend(tmplBlockInst.prototype, {
+    tmplBlockInst.extend = extend;
+    $x.extend(tmplBlockInst.prototype, {
 
         defaults: {
             block: null,
@@ -1527,7 +1605,7 @@
 
             _.each(block._triggers, function (val, idx) {
                 var trigType = val.options.type;
-                var options = _.extend({}, val.options);
+                var options = $x.extend({}, val.options);
                 options.el = t.resolveElement($el, val.options.position);
                 options.context = context;
                 delete options.type;
@@ -1562,7 +1640,7 @@
 
             _.each(block._bindings, function (val, idx) {
                 var target = t.resolveElement($el, val.position);
-                var options = _.extend({}, val, {
+                var options = $x.extend({}, val, {
                     model: context,
                     el: target
                 });
@@ -1630,7 +1708,7 @@
         }
 
     });
-    _.extend(tmplBlockInst.prototype, modelTraversalUtils);
+    $x.extend(tmplBlockInst.prototype, modelTraversalUtils);
 
     var TemplateBlockInst = tmplBlockInst.extend({
         initialize: function () {
@@ -1848,7 +1926,7 @@
         templateInstances[t.tmplID] = this;
     };
 
-    _.extend(mvvm.Template.prototype, {
+    $x.extend(mvvm.Template.prototype, {
         render: function () {
             var t = this;
             var inst = new TemplateBlockInst({
@@ -1909,5 +1987,5 @@
     if (typeof (test) !== 'undefined') {
         mvvm.templateInstances = templateInstances;
     }
-} (jQuery, _, $xintricity));
+} (jQuery, _, XUtil));
 

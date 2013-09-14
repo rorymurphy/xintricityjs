@@ -1,5 +1,5 @@
 ﻿(function ($) {
-    var mvvm = $x.namespace('$xintricity.MVVM');
+    var mvvm = $x.namespace('XMVVM');
 
     test('Two-way Attribute Binding Test', function () {
 

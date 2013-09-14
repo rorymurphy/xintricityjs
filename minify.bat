@@ -1,0 +1,2 @@
+type xin-util.js xin-template-manager.js xin-mvvm.js xin-page.js > xintricity.js
+java -jar "C:\Program Files (x86)\yuicompressor-2.4.7\build\yuicompressor-2.4.7.jar" xintricity.js -o xintricity.min.js --charset utf-8 --nomunge

@@ -78,8 +78,8 @@
         if (!_.has(this._templateTypes, 'handlebars') && typeof (Handlebars) != 'undefined') {
             this.registerTemplateType('handlebars', function (tmplText) { return Handlebars.compile(tmplText); });
         }
-        if (!_.has(this._templateTypes, 'xintricity') && typeof ($x.MVVM) != 'undefined') {
-            this.registerTemplateType('xintricity', function (el) { return $x.MVVM.Template.compile(el); });
+        if (!_.has(this._templateTypes, 'xintricity') && typeof (XMVVM) != 'undefined') {
+            this.registerTemplateType('xintricity', function (el) { return XMVVM.Template.compile(el); });
         }
     }
 
@@ -100,4 +100,4 @@
 
 
 
-} (jQuery, _, $x));
+} (jQuery, _, XUtil));
