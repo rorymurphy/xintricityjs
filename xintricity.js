@@ -273,15 +273,16 @@
         //If object doesn't have fields, create a place for them to go.
         if(!t.fields){ t.fields = {}; }
         
-        //Allow just the field type to be passed in rather than a full field definition
-        if (_.isFunction(options)) {
-            options = { type: options };
-            t.fields[key] = options;
-        }
         if (t.fields && !_.has(this, 'fields')) {
             //If this object is getting fields beyond those in its prototype
             //Copy fields from prototype into a collection for this object
             t.fields = $x.extend({}, t.fields);
+        }
+
+        //Allow just the field type to be passed in rather than a full field definition
+        if (_.isFunction(options)) {
+            options = { type: options };
+            t.fields[key] = options;
         }
         
         if(!_.has(this.fields, key)){
@@ -329,6 +330,7 @@
     mvvm.Model = Backbone.Model.extend({
         constructor: function (attributes, options) {
             var t = this;
+            _.bindAll(this, 'createField', 'set');
             _.defaults(t, {
                 fields: {}
             });
@@ -340,7 +342,7 @@
             });
 
             Backbone.Model.apply(this, [attributes, options]);
-            _.bindAll(this, 'createField', 'set');
+
         },
         fields: {},
         createField: function (key, options) {
@@ -348,11 +350,24 @@
         },
         clone: function () {
             var t = this;
-            var ret = Backbone.Model.prototype.clone.apply(t);
-            _.each(t.fields, function (val, name, list) {
-                ret.createField(name, val);
+            var inst = new this.constructor(this.attributes);
+            //For most fields, it's sufficient just to bind the getter/setters
+            _.chain(inst.fields).keys().each(function(val){
+                inst[val] = _.bind(inst[val], inst);
             });
-            return ret;
+            
+            //TODO: Decide whether a deep clone would be better
+            inst.fields = $x.extend({}, t.fields);
+            //If custom fields were added after the instance was created,
+            //those must be re-created
+            _.each(inst.fields, function (val, name, list) {
+                if(!inst.constructor.prototype
+                    || !inst.constructor.prototype.fields
+                    || !inst.constructor.prototype.fields[name]){
+                        inst.createField(name, val);
+                }
+            });
+            return inst;
         },
         trigger: function (event) {
             var args = Array.prototype.slice.call(arguments);
