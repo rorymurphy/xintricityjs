@@ -1,7 +1,19 @@
-(function ($, _, $x) {
+(function (root, factory) {
+    if (typeof define === 'function' && define.amd) {
+        // AMD. Register as an anonymous module.
+        define(['jQuery', 'underscore', 'XUtil', 'XMVVM-Model'], function ($, _, $x, mvvm) {
+            // Also create a global in case some scripts
+            // that are loaded still are looking for
+            // a global even when an AMD loader is in use.
+            return (root.XMVVM = factory($, _, $x, mvvm));
+        });
+    } else {
+        // Browser globals
+        root.XMVVM = factory(root.jQuery, root._, root.XUtil, root.XMVVM);
+    }
+}(this, function ($, _, $x, mvvm) {
     'use strict';
 
-    var mvvm = $x.namespace('XMVVM');
     mvvm.Binding = function () { };
     mvvm.Binding.extend = $x.extendClass;
 
@@ -930,8 +942,8 @@
             //Corresponds to syntax like {{model.SomeProperty}}
                 basicPatt = /^\{\{([\w\.\[\]]+)\}\}$/i,
             //Corresponds to syntax like {{Path='model.SomeProperty', Transform='model.SomeFunction'}}
-                advPatt = /^\{\{(?:\s*(Path|Transform|Pattern|HTML)\s*=\s*(?:'([^']*)'|"([^"]*)")\s*\,?)+\}\}$/ig,
-                advPatt2 = /(Path|Transform|Pattern|HTML)\s*=\s*('[^']*'|"[^"]*")\s*/ig
+                advPatt = /^\{\{(?:\s*(Path|Filter|Pattern|HTML)\s*=\s*(?:'([^']*)'|"([^"]*)")\s*\,?)+\}\}$/ig,
+                advPatt2 = /(Path|Filter|Pattern|HTML)\s*=\s*('[^']*'|"[^"]*")\s*/ig
 
             if (1 === arguments.length) {
                 allowComplex = true;
@@ -1125,7 +1137,9 @@
 
             _.each(properties, function (value, key, list) {
                 context.set(key, value);
-                context.createField(key, { type: value.constructor });
+                if(!_.isUndefined(value) && !_.isNull(value)){
+                    context.createField(key, { type: value.constructor });
+                }
             });
             return context;
         }
@@ -1286,6 +1300,9 @@
             t.value = t.resolveModelExpressionValue(t.options.context, mod);
         },
         modelChanged: function (event) {
+            //TODO: Update this method so that, if the change is an item being
+            //added or removed and no indexer is specified (another feature to
+            //be implemented), on render/remove the changed element
             var t = this;
             var mod = t.options.block.options.expression;
 
@@ -1416,5 +1433,7 @@
     if (typeof (test) !== 'undefined') {
         mvvm.templateInstances = templateInstances;
     }
-} (jQuery, _, XUtil));
+    
+    return mvvm;
+}));
 

@@ -1,4 +1,17 @@
-(function ($, _, $x) {
+(function (root, factory) {
+    if (typeof define === 'function' && define.amd) {
+        // AMD. Register as an anonymous module.
+        define('XTemplate', ['jQuery', 'underscore', 'XUtil'], function ($, _, $x) {
+            // Also create a global in case some scripts
+            // that are loaded still are looking for
+            // a global even when an AMD loader is in use.
+            return ($x.template = factory($, _, $x));
+        });
+    } else {
+        // Browser globals
+        $x.template = factory(root.jQuery, root._, root.XUtil);
+    }
+}(this, function ($, _, $x) {
     'use strict';
 
     //The template manager provides functionality to easily manage numerous templates spanning multiple template engines.
@@ -44,7 +57,7 @@
                     template = elem.html();
                 }
                 if (type === undefined) {
-                    var type = elem.data('template');
+                    var type = elem.data('xt-template');
                     if (undefined === type) {
                         var ttype = elem.attr('type');
                         var regex = new RegExp('^text\/template-(.+)$');
@@ -84,13 +97,14 @@
     }
 
     var tmplMgr = new templateManager();
-    $x.template = function (template) {
+    
+    var XTemplate = function (template) {
         return tmplMgr.getTemplate(template);
     };
-    $x.template.addTemplate = function () {
+    XTemplate.addTemplate = function () {
         tmplMgr.addTemplate.apply(tmplMgr, arguments);
     };
-    $x.template.registerTemplateTypes = function () {
+    XTemplate.registerTemplateTypes = function () {
         tmplMgr.registerTemplateType.apply(tmplMgr, arguments);
     };
 
@@ -98,6 +112,6 @@
     registerTemplateTypes = _.bind(registerTemplateTypes, tmplMgr);
     //$x.template = $x.templateManager._templates;
 
+    return XTemplate;
 
-
-} (jQuery, _, XUtil));
+}));

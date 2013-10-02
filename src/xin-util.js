@@ -1,15 +1,30 @@
-var XUtil = XUtil || {};
-
-(function ($, _, $x, global) {
+(function (root, factory) {
+    if (typeof define === 'function' && define.amd) {
+        define('XUtil', ['jQuery', '_'], function ($, _) {
+            // Also create a global in case some scripts
+            // that are loaded still are looking for
+            // a global even when an AMD loader is in use.
+            return (root.XUtil = factory(b));
+        });
+    } else {
+        // Browser globals
+        root.$x = root.XUtil = factory(root.jQuery, root._);
+    }
+}(this, function ($, _) {
     'use strict';
-
+    var root = window; //TODO: figure out a proper method to access the global root object inside this context
+    
+    var __$xOld;
+    if(typeof($x) !== 'undefined'){ __$xOld = $x; }
+    var $x = {};
+    
     //Creates or retrieves the requested javascript namespace.
     $x.namespace = function (namespace) {
         var pieces = namespace.split('.');
         var nsIter;
         $.each(pieces, function (index, item) {
             if (index == 0) {
-                nsIter = global;
+                nsIter = root;
             }
             if (!(item in nsIter)) {
                 nsIter[item] = {};
@@ -58,14 +73,15 @@ var XUtil = XUtil || {};
     };
   
     $x.noConflict = function(){
-        if(XUtil.__$x){
-            window.$x = XUtil.__$x;
+        if(__$xOld){
+            window.$x = __$xOld;
         }else{
             delete window.$x;
         }
     }
+    
+    return $x;
 
-} (jQuery, _, XUtil, this));
+}));
 
-if(typeof($x) !== 'undefined'){ XUtil.__$x = $x;}
-$x=XUtil;
+

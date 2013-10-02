@@ -1,0 +1,81 @@
+<!--
+To change this template, choose Tools | Templates
+and open the template in the editor.
+-->
+<!DOCTYPE html>
+<html>
+    <head>
+        <title></title>
+        <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+        
+        <script type="text/javascript" src="../tests/external/jquery-1.8.3.min.js"></script>
+        <script type="text/javascript" src="../tests/external/underscore.js"></script>
+        <script type="text/javascript" src="../tests/external/backbone.js"></script>
+        <script type="text/javascript" src="../src/xin-util.js"></script>
+        <script type="text/javascript" src="../src/xin-template-manager.js"></script>
+        <script type="text/javascript" src="../src/xin-model.js"></script>
+        <script type="text/javascript" src="../src/xin-mvvm.js"></script>
+        <script type="text/javascript" src="xin-sample-data.js"></script>
+        <script type="text/javascript" src="xin-sample-viewmodel.js"></script>
+    </head>
+    <body>
+        <div id="template-playlist" style="display:none;" data-xt-template="xintricity">
+            <h4>{{model.Name}}</h4>
+            <table>
+                <thead><th>Title</th><th>Artist</th><th>Favorite?</th></thead>
+                <tbody data-xt-foreach="{{model.Songs}}" data-xt-iterator="song">
+                    <tr>
+                        <td>{{song.Title}}</td>
+                        <td>{{song.Artist}}</td>
+                        <td>{{song.Category}}</td>
+                        <td>
+                            <a data-xt-class-selected="{{song.IsFavorite}}">
+                                <code data-xt-event="click" data-xt-action="{{viewmodel.toggleFavorite}}" data-xt-value="{{song}}"></code>
+                                <span>{{song.IsFavorite}}</span>
+                            </a>
+                        </td>
+                        <td>
+                            <a href="#"><code data-xt-event="click" data-xt-action="{{viewmodel.removeSong}}" data-xt-value="{{song}}"></code>Delete</a>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>                
+            <h4>Add New</h4>
+            <div>
+                <div class="control-group">
+                    <label class="control-label">Title</label>
+                    <div class="controls">
+                      <input type="text" placeholder="Title" value="{{viewmodel.NewSong.Title}}"/>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label class="control-label">Artist</label>
+                    <div class="controls">
+                      <input type="text" placeholder="Artist" value="{{viewmodel.NewSong.Artist}}"/>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label class="control-label">Category</label>
+                    <div class="controls">
+                      <input type="text" placeholder="Category" value="{{viewmodel.NewSong.Category}}"/>
+                    </div>
+                </div>
+                <button class="btn btn-primary">
+                    <code data-xt-event="click" data-xt-action="{{viewmodel.addSong}}"></code>Add
+                </button>
+            </div>
+
+        </div>
+
+        <div id="template-instance"></div>
+        <script type="text/javascript">
+            debugger;
+            var data = new xin_sample_data.playlist(xin_sample_data.data, {parse: true});
+            var vm = new xin_sample_viewmodel(
+                {model: data}
+            );
+            $('#template-instance').append(vm.render());
+            
+        </script>
+    </body>
+</html>

@@ -1,15 +1,30 @@
-var XUtil = XUtil || {};
-
-(function ($, _, $x, global) {
+(function (root, factory) {
+    if (typeof define === 'function' && define.amd) {
+        define('XUtil', ['jQuery', '_'], function ($, _) {
+            // Also create a global in case some scripts
+            // that are loaded still are looking for
+            // a global even when an AMD loader is in use.
+            return (root.XUtil = factory(b));
+        });
+    } else {
+        // Browser globals
+        root.$x = root.XUtil = factory(root.jQuery, root._);
+    }
+}(this, function ($, _) {
     'use strict';
-
+    var root = window; //TODO: figure out a proper method to access the global root object inside this context
+    
+    var __$xOld;
+    if(typeof($x) !== 'undefined'){ __$xOld = $x; }
+    var $x = {};
+    
     //Creates or retrieves the requested javascript namespace.
     $x.namespace = function (namespace) {
         var pieces = namespace.split('.');
         var nsIter;
         $.each(pieces, function (index, item) {
             if (index == 0) {
-                nsIter = global;
+                nsIter = root;
             }
             if (!(item in nsIter)) {
                 nsIter[item] = {};
@@ -58,18 +73,32 @@ var XUtil = XUtil || {};
     };
   
     $x.noConflict = function(){
-        if(XUtil.__$x){
-            window.$x = XUtil.__$x;
+        if(__$xOld){
+            window.$x = __$xOld;
         }else{
             delete window.$x;
         }
     }
+    
+    return $x;
 
-} (jQuery, _, XUtil, this));
+}));
 
-if(typeof($x) !== 'undefined'){ XUtil.__$x = $x;}
-$x=XUtil;
-(function ($, _, $x) {
+
+(function (root, factory) {
+    if (typeof define === 'function' && define.amd) {
+        // AMD. Register as an anonymous module.
+        define('XTemplate', ['jQuery', 'underscore', 'XUtil'], function ($, _, $x) {
+            // Also create a global in case some scripts
+            // that are loaded still are looking for
+            // a global even when an AMD loader is in use.
+            return ($x.template = factory($, _, $x));
+        });
+    } else {
+        // Browser globals
+        $x.template = factory(root.jQuery, root._, root.XUtil);
+    }
+}(this, function ($, _, $x) {
     'use strict';
 
     //The template manager provides functionality to easily manage numerous templates spanning multiple template engines.
@@ -115,7 +144,7 @@ $x=XUtil;
                     template = elem.html();
                 }
                 if (type === undefined) {
-                    var type = elem.data('template');
+                    var type = elem.data('xt-template');
                     if (undefined === type) {
                         var ttype = elem.attr('type');
                         var regex = new RegExp('^text\/template-(.+)$');
@@ -155,13 +184,14 @@ $x=XUtil;
     }
 
     var tmplMgr = new templateManager();
-    $x.template = function (template) {
+    
+    var XTemplate = function (template) {
         return tmplMgr.getTemplate(template);
     };
-    $x.template.addTemplate = function () {
+    XTemplate.addTemplate = function () {
         tmplMgr.addTemplate.apply(tmplMgr, arguments);
     };
-    $x.template.registerTemplateTypes = function () {
+    XTemplate.registerTemplateTypes = function () {
         tmplMgr.registerTemplateType.apply(tmplMgr, arguments);
     };
 
@@ -169,13 +199,26 @@ $x=XUtil;
     registerTemplateTypes = _.bind(registerTemplateTypes, tmplMgr);
     //$x.template = $x.templateManager._templates;
 
+    return XTemplate;
 
-
-} (jQuery, _, XUtil));
-(function ($, _, $x) {
+}));
+(function (root, factory) {
+    if (typeof define === 'function' && define.amd) {
+        // AMD. Register as an anonymous module.
+        define('XMVVM-Model', ['jQuery', 'underscore', 'XUtil'], function ($, _, $x) {
+            // Also create a global in case some scripts
+            // that are loaded still are looking for
+            // a global even when an AMD loader is in use.
+            return (root.XMVVM = factory($, _, $x));
+        });
+    } else {
+        // Browser globals
+        root.XMVVM = factory($, _, $x);
+    }
+}(this, function ($, _, $x) {
     'use strict';
 
-    var mvvm = $x.namespace('XMVVM');
+    var mvvm = {};
     Backbone.Model.isParentTypeOf = function (type) {
         return Backbone.Model.prototype.isPrototypeOf(type.prototype);
     };
@@ -220,7 +263,16 @@ $x=XUtil;
     };
     
     var createField = function (key, options) {
+        var t=this;
+        createFieldInternal.call(t, key, options);
+        t[key] = _.bind(t[key], t);
+    };  
+  
+    var createFieldInternal = function (key, options) {
         var t = this;
+        //If object doesn't have fields, create a place for them to go.
+        if(!t.fields){ t.fields = {}; }
+        
         //Allow just the field type to be passed in rather than a full field definition
         if (_.isFunction(options)) {
             options = { type: options };
@@ -231,20 +283,21 @@ $x=XUtil;
             //Copy fields from prototype into a collection for this object
             t.fields = $x.extend({}, t.fields);
         }
+        
         if(!_.has(this.fields, key)){
             t.fields[key] = options;
         }
         t.fields[key]["name"] = key;
 
-        t[key] = _.bind(function () {
+        t[key] = function () {
             if (arguments.length === 1) {
                 this.set(key, arguments[0]);
             } else {
                 return this.get(key);
             }
-        }, t);
-    };  
-  
+        };
+    };
+    
     _.mixin({
         resultBB: function (obj, property, evaluate) {
             if (evaluate === undefined) { evaluate = true; }
@@ -279,8 +332,11 @@ $x=XUtil;
             _.defaults(t, {
                 fields: {}
             });
-            _.each(this.fields, function (val, key, list) {
-                t.createField(key, val);
+                      
+            //Bind the getter/setter functions for all the inherited
+            //fields to the current object
+            _.chain(t.fields).keys().each(function(val){
+                t[val] = _.bind(t[val], t);
             });
 
             Backbone.Model.apply(this, [attributes, options]);
@@ -341,12 +397,12 @@ $x=XUtil;
                         evt = new mvvm.Event({ route1: arguments[1], route2: arguments[2], params: arguments[3] });
                         break;
                 }
-                if (evt != null) {
+                if (evt !== null) {
                     Backbone.Model.prototype.trigger.apply(this, [event, evt]);
                 } else {
                     Backbone.Model.prototype.trigger.apply(this, arguments);
                 }
-            } else if(1 == arguments.length) {
+            } else if(1 === arguments.length) {
                 if(this instanceof mvvm.Model){
                     evt = new mvvm.Event({ model: this });
                 }else if(this instanceof mvvm.Collection){
@@ -377,7 +433,7 @@ $x=XUtil;
 
             _.each(attrs, function (value, name, list) {
                 var field, valid;
-                if (fields != null && _.has(fields, name)) {
+                if (fields !== null && _.has(fields, name)) {
                     field = fields[name];
                     val = t._prepareValue(field, value);
                     valid = true;
@@ -390,7 +446,7 @@ $x=XUtil;
                 }
 
                 curr = t[name];
-                if (curr != null && (curr instanceof Backbone.Model || curr instanceof Backbone.Collection)) {
+                if (curr !== null && (curr instanceof Backbone.Model || curr instanceof Backbone.Collection)) {
                     curr.off('all', retrigger, this);
                 }
 
@@ -457,14 +513,6 @@ $x=XUtil;
             return value;
         },
 
-        listenToEl: function () {
-            if (arguments.length == 3) {
-                this.$el.on(arguments[0], arguments[1], arguments[2]);
-            } else if (arguments.length == 2) {
-                this.$el.on(arguments[0], arguments[1]);
-            }
-        },
-
         parse: function (res) {
             _.each(this.fields, function (elem, index, list) {
                 if (Backbone.Model.isParentTypeOf(elem.type) || Backbone.Collection.isParentTypeOf(elem.type)) {
@@ -473,18 +521,24 @@ $x=XUtil;
             });
 
             return res;
-        },
-                
-        extend: function(protoProps, staticProps) {
-            var obj = extend.call(this, protoProps, staticProps);
-            if(_.has(protoProps, 'fields')){
-                _.each(protoProps.fields, function(val, key){
-                    createField.call(this, key, val);
-                });
-            }
         }
     });
-
+    mvvm.Model.extend = function(protoProps, staticProps) {
+        var t=this;
+        var obj = extend.call(t, protoProps, staticProps);
+        if(t.prototype.fields){
+            _.each(t.prototype.fields, function(val, key){
+                createFieldInternal.call(obj.prototype, key, val);
+            });
+        }
+        if(_.has(protoProps, 'fields')){
+            _.each(protoProps.fields, function(val, key){
+                createFieldInternal.call(obj.prototype, key, val);
+            });
+        }
+        return obj;
+    };
+    
     mvvm.Model.defaults = {
         useGetSet : false //option to support javascript getter/setter syntax
     };
@@ -509,17 +563,19 @@ $x=XUtil;
     });
 
     mvvm.ViewModel = mvvm.Model.extend({
-        model: null,
         view: null,
+        fields: {
+            model: Object
+        },
         render: function () {
             var t = this;
             if (t.view) {
-                return $x.template(t.view)(t.model);
+                return $x.template(t.view)(t.model(), {context: {viewmodel: t}});
             }
             return undefined;
         }
     });
-    mvvm.ViewModel.extend = extend;
+    //mvvm.ViewModel.extend = extend;
 
 
     var backboneGetSet = function(name, val){
@@ -625,19 +681,19 @@ $x=XUtil;
             return val;
         },
 
-        _applyBindExpression: function (expression, value, model) {
+        _applyBindExpression: function (expression, value, context) {
             var transform;
-            if (_.has(expression, 'transform') && _.isString(expression.transform)) {
-                transform = this.resolveModelPath(model, expression.transform, { evalVal: false, allowPartial: false });
-                if (!_.isArray(transform)) {
-                    throw 'Invalid transform, path does not exist';
+            if (_.has(expression, 'filter') && _.isString(expression.filter)) {
+                var filter = this.resolveModelPath(context, expression.filter, { evalVal: false, allowPartial: false });
+                if (!_.isArray(filter)) {
+                    throw 'Invalid filter, path does not exist';
                 } else {
-                    transform = _.last(transform);
+                    filter = _.last(filter);
                 }
-                if (_.isFunction(transform)) {
-                    value = transform(value);
+                if (_.isFunction(filter)) {
+                    value = filter(value);
                 } else {
-                    throw 'Invalid transform, not a function';
+                    throw 'Invalid filter, not a function';
                 }
             }else if (_.has(expression, 'pattern') && _.isString(expression.pattern)) {
                 value = $x.format(expression.Pattern, value);
@@ -752,12 +808,26 @@ $x=XUtil;
             }
         }
     };
-} (jQuery, _, XUtil));
+    
+    return mvvm;
+}));
 
-(function ($, _, $x) {
+(function (root, factory) {
+    if (typeof define === 'function' && define.amd) {
+        // AMD. Register as an anonymous module.
+        define(['jQuery', 'underscore', 'XUtil', 'XMVVM-Model'], function ($, _, $x, mvvm) {
+            // Also create a global in case some scripts
+            // that are loaded still are looking for
+            // a global even when an AMD loader is in use.
+            return (root.XMVVM = factory($, _, $x, mvvm));
+        });
+    } else {
+        // Browser globals
+        root.XMVVM = factory(root.jQuery, root._, root.XUtil, root.XMVVM);
+    }
+}(this, function ($, _, $x, mvvm) {
     'use strict';
 
-    var mvvm = $x.namespace('XMVVM');
     mvvm.Binding = function () { };
     mvvm.Binding.extend = $x.extendClass;
 
@@ -1686,8 +1756,8 @@ $x=XUtil;
             //Corresponds to syntax like {{model.SomeProperty}}
                 basicPatt = /^\{\{([\w\.\[\]]+)\}\}$/i,
             //Corresponds to syntax like {{Path='model.SomeProperty', Transform='model.SomeFunction'}}
-                advPatt = /^\{\{(?:\s*(Path|Transform|Pattern|HTML)\s*=\s*(?:'([^']*)'|"([^"]*)")\s*\,?)+\}\}$/ig,
-                advPatt2 = /(Path|Transform|Pattern|HTML)\s*=\s*('[^']*'|"[^"]*")\s*/ig
+                advPatt = /^\{\{(?:\s*(Path|Filter|Pattern|HTML)\s*=\s*(?:'([^']*)'|"([^"]*)")\s*\,?)+\}\}$/ig,
+                advPatt2 = /(Path|Filter|Pattern|HTML)\s*=\s*('[^']*'|"[^"]*")\s*/ig
 
             if (1 === arguments.length) {
                 allowComplex = true;
@@ -1881,7 +1951,9 @@ $x=XUtil;
 
             _.each(properties, function (value, key, list) {
                 context.set(key, value);
-                context.createField(key, { type: value.constructor });
+                if(!_.isUndefined(value) && !_.isNull(value)){
+                    context.createField(key, { type: value.constructor });
+                }
             });
             return context;
         }
@@ -2042,6 +2114,9 @@ $x=XUtil;
             t.value = t.resolveModelExpressionValue(t.options.context, mod);
         },
         modelChanged: function (event) {
+            //TODO: Update this method so that, if the change is an item being
+            //added or removed and no indexer is specified (another feature to
+            //be implemented), on render/remove the changed element
             var t = this;
             var mod = t.options.block.options.expression;
 
@@ -2172,5 +2247,7 @@ $x=XUtil;
     if (typeof (test) !== 'undefined') {
         mvvm.templateInstances = templateInstances;
     }
-} (jQuery, _, XUtil));
+    
+    return mvvm;
+}));
 
