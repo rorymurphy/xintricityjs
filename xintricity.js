@@ -1,3 +1,20 @@
+/*
+Copyright (c) 2013, Rory Murphy
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
+
+Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.
+Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the documentation and/or other materials provided with the distribution.
+Neither the name of the Rory Murphy nor the names of its contributors may be used to endorse or promote products derived from this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
+CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+*/
 (function (root, factory) {
     if (typeof define === 'function' && define.amd) {
         define('XUtil', ['jQuery', '_'], function ($, _) {
@@ -85,6 +102,23 @@
 }));
 
 
+/*
+Copyright (c) 2013, Rory Murphy
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
+
+Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.
+Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the documentation and/or other materials provided with the distribution.
+Neither the name of the Rory Murphy nor the names of its contributors may be used to endorse or promote products derived from this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
+CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+*/
 (function (root, factory) {
     if (typeof define === 'function' && define.amd) {
         // AMD. Register as an anonymous module.
@@ -202,6 +236,23 @@
     return XTemplate;
 
 }));
+/*
+Copyright (c) 2013, Rory Murphy
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
+
+Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.
+Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the documentation and/or other materials provided with the distribution.
+Neither the name of the Rory Murphy nor the names of its contributors may be used to endorse or promote products derived from this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
+CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+*/
 (function (root, factory) {
     if (typeof define === 'function' && define.amd) {
         // AMD. Register as an anonymous module.
@@ -324,8 +375,14 @@
     mvvm.Event = function (options) {
         this.eid = 'e' + eid_iter;
         eid_iter++;
+        
+        var isDefaultPrevented = false;
+        this.preventDefault = function(){isDefaultPrevented=true;};
+        this.isDefaultPrevented = function(){return isDefaultPrevented;};
+        
         $x.extend(this, options);
     };
+    
     mvvm.Event.extend = extend;
     mvvm.Model = Backbone.Model.extend({
         constructor: function (attributes, options) {
@@ -827,6 +884,23 @@
     return mvvm;
 }));
 
+/*
+Copyright (c) 2013, Rory Murphy
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
+
+Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.
+Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the documentation and/or other materials provided with the distribution.
+Neither the name of the Rory Murphy nor the names of its contributors may be used to endorse or promote products derived from this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
+CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+*/
 (function (root, factory) {
     if (typeof define === 'function' && define.amd) {
         // AMD. Register as an anonymous module.
@@ -1319,10 +1393,32 @@
             event: 'click'
         },
         initialize: function () {
+            _.bindAll(this,
+                'onTrigger',
+                'onTriggerInv',
+                'onTriggerInternal',
+                'onTriggerInvInternal',
+                'bind',
+                'unbind',
+                'dispose');
             this.bind();
         },
-        onTrigger: function () { },
-        onTriggerInv: function () { },
+        onTrigger: function (evt) { },
+        onTriggerInv: function (evt) { },
+        onTriggerInternal: function(evt){
+            var t = this;
+            var nEvt = new mvvm.Event({event: t.options.event});
+            t.onTrigger(nEvt);
+            if(nEvt.isDefaultPrevented())
+            { evt.preventDefault(); }
+        },
+        onTriggerInvInternal: function(evt){
+            var t = this;
+            var nEvt = new mvvm.Event({event: t.options.event});
+            t.onTrigger(nEvt);
+            if(nEvt.isDefaultPrevented())
+            { evt.preventDefault(); }           
+        },
         bind: function () {
             var t = this;
             var $el = $(t.options.el);
@@ -1331,11 +1427,11 @@
                     throw "Event name cannot be null";
                     break;
                 case 'hover':
-                    $el.on('mouseenter.binding', t.onTrigger);
-                    $el.on('mouseleave.binding', t.onTriggerInv);
+                    $el.on('mouseenter.binding', t.onTriggerInternal);
+                    $el.on('mouseleave.binding', t.onTriggerInvInternal);
                     break;
                 default:
-                    $el.on(t.options.event + '.binding', t.onTrigger);
+                    $el.on(t.options.event + '.binding', t.onTriggerInternal);
                     break;
             }
         },
@@ -1348,11 +1444,11 @@
                     throw "Event name cannot be null";
                     break;
                 case 'hover':
-                    $el.off('mouseenter.binding', t.onTrigger);
-                    $el.on('mouseleave.binding', t.onTriggerInv);
+                    $el.off('mouseenter.binding', t.onTriggerInternal);
+                    $el.on('mouseleave.binding', t.onTriggerInvInternal);
                     break;
                 default:
-                    $el.off(t.options.event + '.binding', t.onTrigger);
+                    $el.off(t.options.event + '.binding', t.onTriggerInternal);
                     break;
             }
         },
@@ -1366,8 +1462,7 @@
 
     mvvm.StyleTrigger = mvvm.Trigger.extend({
         initialize: function () {
-            _.bindAll(this, 'onTrigger', 'onTriggerInv', 'bind', 'unbind', 'dispose');
-            this.bind();
+            mvvm.Trigger.prototype.initialize.call(this);
         },
 
         defaults: {
@@ -1444,11 +1539,10 @@
             value: undefined
         },
         initialize: function () {
-            _.bindAll(this, 'onTrigger', 'onTriggerInv', 'bind', 'unbind', 'dispose');
-            this.bind();
+            mvvm.Trigger.prototype.initialize.call(this);
         },
 
-        onTrigger: function () {
+        onTrigger: function (evt) {
             var t = this;
             if (t.options.context != null && t.options.action != null) {
                 var action = t.resolveModelExpression(t.options.context, t.options.action, { evalVal: false });
@@ -1459,13 +1553,10 @@
                 var value = t.options.value;
                 var hasValue = (undefined !== t.options.value);
                 if (hasValue && _.has(value, 'path')) {
-                    value = t.resolveModelExpressionValue(t.options.context, value);
+                    evt.data = t.resolveModelExpressionValue(t.options.context, value);
                 }
-                if (undefined !== action && hasValue) {
-                    action(value);
-                } else if (undefined !== action) {
-                    action();
-                }
+                
+                action(evt);
             }
         }
     });

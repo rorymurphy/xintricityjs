@@ -1,3 +1,20 @@
+/*
+Copyright (c) 2013, Rory Murphy
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
+
+Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.
+Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the documentation and/or other materials provided with the distribution.
+Neither the name of the Rory Murphy nor the names of its contributors may be used to endorse or promote products derived from this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
+CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+*/
 (function (root, factory) {
     if (typeof define === 'function' && define.amd) {
         // AMD. Register as an anonymous module.
@@ -194,15 +211,6 @@
             var t = this;
             var result = t.resolveModelExpression(t.options.model, path, { evalVal: true, allowPartial: false });
             return (_.isArray(result) && result.length > 0)?_.last(result):undefined;
-//            if (typeof (this._modelPaths) === 'undefined' || !_.has(this._modelPaths, path) || this._modelPaths[path].length === 0) { return; }
-//
-//            var modPath = this._modelPaths[path]
-//            var val = modPath[modPath.length - 1];
-//            if (_.isFunction(val)) {
-//                return val();
-//            } else {
-//                return val;
-//            }
         },
 
         modelChanged: function (path) {
@@ -490,10 +498,32 @@
             event: 'click'
         },
         initialize: function () {
+            _.bindAll(this,
+                'onTrigger',
+                'onTriggerInv',
+                'onTriggerInternal',
+                'onTriggerInvInternal',
+                'bind',
+                'unbind',
+                'dispose');
             this.bind();
         },
-        onTrigger: function () { },
-        onTriggerInv: function () { },
+        onTrigger: function (evt) { },
+        onTriggerInv: function (evt) { },
+        onTriggerInternal: function(evt){
+            var t = this;
+            var nEvt = new mvvm.Event({event: t.options.event});
+            t.onTrigger(nEvt);
+            if(nEvt.isDefaultPrevented())
+            { evt.preventDefault(); }
+        },
+        onTriggerInvInternal: function(evt){
+            var t = this;
+            var nEvt = new mvvm.Event({event: t.options.event});
+            t.onTrigger(nEvt);
+            if(nEvt.isDefaultPrevented())
+            { evt.preventDefault(); }           
+        },
         bind: function () {
             var t = this;
             var $el = $(t.options.el);
@@ -502,11 +532,11 @@
                     throw "Event name cannot be null";
                     break;
                 case 'hover':
-                    $el.on('mouseenter.binding', t.onTrigger);
-                    $el.on('mouseleave.binding', t.onTriggerInv);
+                    $el.on('mouseenter.binding', t.onTriggerInternal);
+                    $el.on('mouseleave.binding', t.onTriggerInvInternal);
                     break;
                 default:
-                    $el.on(t.options.event + '.binding', t.onTrigger);
+                    $el.on(t.options.event + '.binding', t.onTriggerInternal);
                     break;
             }
         },
@@ -519,11 +549,11 @@
                     throw "Event name cannot be null";
                     break;
                 case 'hover':
-                    $el.off('mouseenter.binding', t.onTrigger);
-                    $el.on('mouseleave.binding', t.onTriggerInv);
+                    $el.off('mouseenter.binding', t.onTriggerInternal);
+                    $el.on('mouseleave.binding', t.onTriggerInvInternal);
                     break;
                 default:
-                    $el.off(t.options.event + '.binding', t.onTrigger);
+                    $el.off(t.options.event + '.binding', t.onTriggerInternal);
                     break;
             }
         },
@@ -537,8 +567,7 @@
 
     mvvm.StyleTrigger = mvvm.Trigger.extend({
         initialize: function () {
-            _.bindAll(this, 'onTrigger', 'onTriggerInv', 'bind', 'unbind', 'dispose');
-            this.bind();
+            mvvm.Trigger.prototype.initialize.call(this);
         },
 
         defaults: {
@@ -612,14 +641,13 @@
             event: 'click',
             context: {},
             action: null,
-            value: undefined
+            data: undefined
         },
         initialize: function () {
-            _.bindAll(this, 'onTrigger', 'onTriggerInv', 'bind', 'unbind', 'dispose');
-            this.bind();
+            mvvm.Trigger.prototype.initialize.call(this);
         },
 
-        onTrigger: function () {
+        onTrigger: function (evt) {
             var t = this;
             if (t.options.context != null && t.options.action != null) {
                 var action = t.resolveModelExpression(t.options.context, t.options.action, { evalVal: false });
@@ -627,16 +655,13 @@
                     action = _.last(action);
                 }
 
-                var value = t.options.value;
-                var hasValue = (undefined !== t.options.value);
+                var value = t.options.data;
+                var hasValue = (undefined !== t.options.data);
                 if (hasValue && _.has(value, 'path')) {
-                    value = t.resolveModelExpressionValue(t.options.context, value);
+                    evt.data = t.resolveModelExpressionValue(t.options.context, value);
                 }
-                if (undefined !== action && hasValue) {
-                    action(value);
-                } else if (undefined !== action) {
-                    action();
-                }
+                
+                action(evt);
             }
         }
     });
@@ -715,14 +740,14 @@
                 };
 
                 var action = $el.data('xt-action');
-                var value = $el.data('xt-value');
+                var value = $el.data('xt-data');
                 var styles = $el.data('xt-style');
                 var cssClass = $el.data('xt-class');
                 if (action) {
                     options.type = mvvm.ActionTrigger;
                     options.action = t.parseBinding(action, false);
                     if (undefined !== value) {
-                        options.value = t.parseBinding(value, false);
+                        options.data = t.parseBinding(value, false);
                     }
                     options.event = $el.data('xt-event');
                 } else if (styles != null || cssClass != null) {
@@ -818,14 +843,14 @@
 
         parseTemplates: function () {
             var t = this;
-            var blocks = t.$el.find('[data-xt-template]').not(t.excludeNestedScopes);
+            var blocks = t.$el.find('[data-xt-partial]').not(t.excludeNestedScopes);
             blocks.each(function (idx, elem) {
                 var $el = $(elem);
                 t._nestedTemplates.push(new tmplBlock({
                     el: elem,
                     type: 'templateref',
                     position: t.calculatePosition($el, t.$el),
-                    template: $el.data('xt-template'),
+                    template: t.parseBinding($el.data('xt-partial')),
                     model: t.parseBinding($el.data('xt-model'))
                 }));
             });
@@ -1184,10 +1209,22 @@
             var t = this;
             var block = t.options.block;
             t.clear();
-            $x.template(block.options.template)('destroy', t.$el);
-            var rplc = $x.template(block.options.template)(t.model);
-            t.$el.replaceWith(rplc);
-            t.setEl(rplc);
+            
+            var template = block.options.template;
+            if((_.isUndefined(template) || _.isNull(template)) && (t.model instanceof mvvm.ViewModel)){
+                var rplc = t.model.render();
+                t.$el.replaceWith(rplc);
+                t.setEl(rplc);                
+            }else{
+
+                if(_.isObject(template)){
+                    template = t.resolveModelExpressionValue(t.options.context, template);
+                }
+                $x.template(template)('destroy', t.$el);
+                var rplc = $x.template(template)(t.model);
+                t.$el.replaceWith(rplc);
+                t.setEl(rplc);
+            }
         }
     });
 
