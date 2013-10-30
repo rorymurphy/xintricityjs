@@ -48,6 +48,17 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
             //this.loadTemplates();
         },
 
+        hasTemplate: function(name) {
+            var t = this;
+            var found = _.has(t._templates, name);
+            if(!found){
+                var item = $('#' + name);
+                found = item.length > 0
+                    && (undefined !== item.data('xt-template')
+                        || item.is('script[type^="text/template"]'));
+            }
+            return found;
+        },
         getTemplate: function (name) {
             registerTemplateTypes();
             var t = this, type = null, pattern, matches;

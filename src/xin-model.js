@@ -18,17 +18,17 @@
 (function(root, factory) {
     if (typeof define === 'function' && define.amd) {
         // AMD. Register as an anonymous module.
-        define('XMVVM-Model', ['jQuery', 'underscore', 'XUtil'], function($, _, $x) {
+        define('XMVVM-Model', ['jQuery', 'underscore', 'XUtil', 'XBase'], function($, _, $x, XBase) {
             // Also create a global in case some scripts
             // that are loaded still are looking for
             // a global even when an AMD loader is in use.
-            return (root.XMVVM = factory($, _, $x));
+            return (root.XMVVM = factory($, _, $x, XBase));
         });
     } else {
         // Browser globals
-        root.XMVVM = factory($, _, $x);
+        root.XMVVM = factory($, _, $x, __XBase__);
     }
-}(this, function($, _, $x) {
+}(this, function($, _, $x, Backbone) {
     'use strict';
 
     var mvvm = {};
@@ -40,45 +40,7 @@
         return Backbone.Collection.prototype.isPrototypeOf(type.prototype);
     };
 
-    //Define our own extend method that uses the enhanced extend with
-    //getter and setter support
-    var extend = $x.extendClass = function(protoProps, staticProps) {
-        var parent = this;
-        var child;
-
-        // The constructor function for the new subclass is either defined by you
-        // (the "constructor" property in your `extend` definition), or defaulted
-        // by us to simply call the parent's constructor.
-        if (protoProps && _.has(protoProps, 'constructor')) {
-            child = protoProps.constructor;
-        } else {
-            child = function() {
-                return parent.apply(this, arguments);
-            };
-        }
-
-        // Add static properties to the constructor function, if supplied.
-        $x.extend(child, parent, staticProps);
-
-        // Set the prototype chain to inherit from `parent`, without calling
-        // `parent`'s constructor function.
-        var Surrogate = function() {
-            this.constructor = child;
-        };
-        Surrogate.prototype = parent.prototype;
-        child.prototype = new Surrogate;
-
-        // Add prototype properties (instance properties) to the subclass,
-        // if supplied.
-        if (protoProps)
-            $x.extend(child.prototype, protoProps);
-
-        // Set a convenience property in case the parent's prototype is needed
-        // later.
-        child.__super__ = parent.prototype;
-
-        return child;
-    };
+    var extend = $x.extendClass;
 
     var createField = function(key, options) {
         var t = this;
@@ -142,23 +104,106 @@
         }
     });
 
-    var eid_iter = 0;
-    mvvm.Event = function(options) {
-        this.eid = 'e' + eid_iter;
-        eid_iter++;
+    // Defined the Xintricity event in the modified Backbone library, but want
+    // it to be part of the XMVVM object
+    mvvm.Event = Backbone.Event;
+    
+    var collEvtMap = {
+        add: ['model', 'collection', 'options'],
+        remove: ['model', 'collection', 'options'],
+        destroy: ['model', 'collection', 'options'],
+        reset: ['collection', 'options'],
+        sort: ['collection', 'options'],
 
-        var isDefaultPrevented = false;
-        this.preventDefault = function() {
-            isDefaultPrevented = true;
-        };
-        this.isDefaultPrevented = function() {
-            return isDefaultPrevented;
-        };
-
-        $x.extend(this, options);
+        request: ['collection', 'xhr', 'options'],
+        sync: ['collection', 'resp', 'options'],
+        error: ['collection', 'xhr', 'options']
     };
 
-    mvvm.Event.extend = extend;
+    var modelEvtMap = {
+        add: ['model', 'collection', 'options'],
+        remove: ['model', 'collection', 'options'],
+        destroy: ['model', 'collection', 'options'],        
+        
+        change: ['model', 'options'],
+        'change:': ['model','value','options'],
+
+        request: ['model', 'xhr', 'options'],
+        sync: ['model', 'resp', 'options'],
+        error: ['model', 'xhr', 'options'],
+
+        invalid: ['model', 'error', 'options']
+
+    };
+
+    var routerEvtMap = {
+        route: ['route','params'],
+        'route:': ['params']
+    };
+
+    //Maps legacy Backbone events to Xintricity event objects
+    var mapEvent = function(evtMap, event) {
+        var reqArgCount = 2; //This will be used for certain offsets in the arguments 
+        var args = Array.prototype.slice.call(arguments);
+        var evt;
+
+        var evtType = event;
+        var eIdx = event.indexOf(':');
+
+        var map=undefined;
+        if(_.has(evtMap, evtType)){
+            map = evtMap[evtType];
+        }else if(eIdx >= 0){
+             //Handle the case where it's a sub-type of event like change:property
+            var eType = evtType.substr(0, eIdx + 1);
+            if(_.has(evtMap, eType)){
+                map = evtMap[eType];
+            }
+        }
+
+        if(undefined !== map){
+            var newArgs = {};
+            _.each(map, function(val, idx){
+               newArgs[val] = args[idx + reqArgCount]; 
+            });
+
+            evt = new mvvm.Event(newArgs);
+        }
+        
+        return evt;
+    };
+    
+    var trigger = function(parentType, eventAttrName, eventMap, event) {
+        var reqArgCount = 4;
+        var args = Array.prototype.slice.call(arguments);
+        var evt;
+        var evtArgs = null;
+        if (arguments.length > reqArgCount
+                && !(arguments[reqArgCount] instanceof mvvm.Event)) {
+            //The event was triggered with legacy Backbone syntax
+            var mapArgs = Array.prototype.slice.call(arguments, reqArgCount - 1);
+            mapArgs.unshift(eventMap);
+            evt = mapEvent.apply(this, mapArgs);
+            if (undefined !== evt) {
+                evtArgs = [event, evt];
+            } else {
+                evtArgs = Array.prototype.slice.call(arguments, reqArgCount - 1);
+            }
+        } else if (reqArgCount === arguments.length) {
+            //Only the event name was passed in, with no arguments
+            var newArgs = {};
+            newArgs[eventAttrName] = this;
+            evt = new mvvm.Event(newArgs);
+            evtArgs = [event].concat([evt]);
+            
+        } else {
+            //The event was triggered using Xintricity syntax
+            evtArgs = Array.prototype.slice.call(arguments, reqArgCount - 1);
+        }
+        
+        parentType.prototype.trigger.apply(this, evtArgs);
+    };    
+    
     mvvm.Model = Backbone.Model.extend({
         constructor: function(attributes, options) {
             var t = this;
@@ -201,69 +246,19 @@
             });
             return inst;
         },
-        trigger: function(event) {
-            var args = Array.prototype.slice.call(arguments);
-            var evt;
-            if (arguments.length > 1 && !(arguments[1] instanceof mvvm.Event)) {
-
-                var evtType = event;
-                var eIdx = event.indexOf(':');
-                if (eIdx !== -1) {
-                    evtType = event.substr(0, eIdx + 1);
+        toJSON: function() {
+            var t=this;
+            var atts = _.clone(t.attributes);
+            _.each(atts, function(val, key){
+                if(val instanceof mvvm.Model
+                    || val instanceof mvvm.Collection){
+                    atts[key] = val.toJSON();
                 }
-                switch (evtType) {
-                    case 'add':
-                    case 'remove':
-                    case 'destroy':
-                        evt = new mvvm.Event({model: arguments[1], collection: arguments[2], options: arguments[3]});
-                        break;
-                    case 'reset':
-                    case 'sort':
-                        evt = new mvvm.Event({collection: arguments[1], options: arguments[2]});
-                        break;
-                    case 'change':
-                        evt = new mvvm.Event({model: arguments[1], options: arguments[2]});
-                        break;
-                    case 'request':
-                    case 'error':
-                        evt = new mvvm.Event({model: arguments[1], xhr: arguments[2], options: arguments[3]});
-                        break;
-                    case 'sync':
-                        evt = new mvvm.Event({model: arguments[1], resp: arguments[2], options: arguments[3]});
-                        break;
-                    case 'invalid':
-                        evt = new mvvm.Event({model: arguments[1], error: arguments[2], options: arguments[3]});
-                        break;
-                    case 'route':
-                        evt = new mvvm.Event({params: arguments[1]});
-                        break;
-                    case 'change:':
-                        evt = new mvvm.Event({model: arguments[1], value: arguments[2], options: arguments[3]});
-                        break;
-                    case 'route:':
-                        evt = new mvvm.Event({route1: arguments[1], route2: arguments[2], params: arguments[3]});
-                        break;
-                }
-                if (evt !== null) {
-                    Backbone.Model.prototype.trigger.apply(this, [event, evt]);
-                } else {
-                    Backbone.Model.prototype.trigger.apply(this, arguments);
-                }
-            } else if (1 === arguments.length) {
-                if (this instanceof mvvm.Model) {
-                    evt = new mvvm.Event({model: this});
-                } else if (this instanceof mvvm.Collection) {
-                    evt = new mvvm.Event({collection: this});
-                }
-
-                args.push(evt);
-                Backbone.Model.prototype.trigger.apply(this, args);
-            } else {
-                Backbone.Model.prototype.trigger.apply(this, arguments);
-            }
-
-
+            });
+            
+            return atts;
         },
+        trigger: _.partial(trigger, Backbone.Model, 'model', modelEvtMap),
         set: function(key, val, options) {
             var t = this, attrs, curr;
             var fields = t['fields'];
@@ -278,11 +273,14 @@
             //Fields will be null during a clone
             //if(fields==null){Backbone.Model.prototype.set.apply(this, [key, val, options]); return;}
 
+            var fAttrs = _.clone(attrs);
             _.each(attrs, function(value, name, list) {
-                var field, valid;
+                var field, valid, fVal;
+                
+                fVal=value;
                 if (fields !== null && _.has(fields, name)) {
                     field = fields[name];
-                    val = t._prepareValue(field, value);
+                    fVal = t._prepareValue(field, value);
                     valid = true;
                     if (_.isFunction(field.validate)) {
                         valid = field.validate(value);
@@ -298,13 +296,18 @@
                 }
 
                 //If it's a model or collection, bubble the change events
-                if (value instanceof Backbone.Model || value instanceof Backbone.Collection) {
+                if (fVal instanceof Backbone.Model || fVal instanceof Backbone.Collection) {
                     var retrigger = function(evtName, evt) {
                         var args = Array.prototype.slice.call(arguments);
                         // Prevent cycles if two models both reference each other
-                        if (_.has(evt, 'model') && evt.model === t || (_.has(evt, 'recipients') && _.has(evt.recipients, t.cid))) {
+                        if (_.has(evt, 'model')
+                                && evt.model === t
+                                || (_.has(evt, 'recipients')
+                                    && _.has(evt.recipients, t.cid))
+                        ) {
                             return;
                         }
+                        evt.bubble();
                         evt.recipients = evt.recipients || {};
                         evt.recipients[t.cid] = true;
                         t.trigger.apply(t, args);
@@ -314,10 +317,12 @@
                     if (currVal) {
                         currVal.off('all', retrigger, t.cid + name);
                     }
-                    value.on('all', retrigger, t.cid + name);
+                    fVal.on('all', retrigger, t.cid + name);
                 }
+                
+                fAttrs[name] = fVal;
             });
-            Backbone.Model.prototype.set.apply(this, [attrs, options]);
+            Backbone.Model.prototype.set.apply(this, [fAttrs, options]);
 
         },
         _prepareValue: function(field, value) {
@@ -367,9 +372,6 @@
                                 || ((field.type === Backbone.Collection || Backbone.Collection.isParentTypeOf(field.type))
                                 && (_.isObject(value) || _.isArray(value)))) {
                             value = new field.type(value);
-                        }else if( (field.type === Backbone.Collection || Backbone.Collection.isParentTypeOf(field.type))
-                                && _.isArray(value)){
-                            value = new field.type(value);
                         }else if (!(value instanceof field.type)) {
                             throw 'Type mismatch';
                         }
@@ -380,13 +382,16 @@
             return value;
         },
         parse: function(res) {
+            var result = {};
             _.each(this.fields, function(elem, index, list) {
                 if (Backbone.Model.isParentTypeOf(elem.type) || Backbone.Collection.isParentTypeOf(elem.type)) {
-                    res[elem.name] = new elem.type(res[elem.name], {parse: true});
+                    result[elem.name] = new elem.type(res[elem.name], {parse: true});
+                }else{
+                    result[elem.name] = res[elem.name];
                 }
             });
 
-            return res;
+            return result;
         }
     });
     mvvm.Model.extend = function(protoProps, staticProps) {
@@ -404,7 +409,9 @@
         }
         return obj;
     };
-
+    mvvm.Model.createField = function(obj, key, options) {
+        createFieldInternal.call(obj, key, options);
+    };
     mvvm.Model.defaults = {
         useGetSet: false //option to support javascript getter/setter syntax
     };
@@ -424,10 +431,8 @@
             else {
                 Backbone.Collection.prototype._onModelEvent.apply(this, arguments);
             }
-        }
-    });
-
-    mvvm.View = Backbone.View.extend({
+        },
+        trigger: _.partial(trigger, Backbone.Collection, 'collection', collEvtMap)
     });
 
     mvvm.ViewModel = mvvm.Model.extend({
@@ -438,9 +443,15 @@
         render: function() {
             var t = this;
             if (t.view) {
-                return $x.template(t.view)(t.model(), {context: {viewmodel: t}});
+                t.$el = $x.template(t.view)(t.model(), {context: {viewmodel: t}});
             }
-            return undefined;
+            return t.$el;
+        },
+        dispose: function() {
+            var t=this;
+            if(t.$el && t.view){
+                $x.template(t.view)('destroy', t.$el);
+            }
         }
     });
     //mvvm.ViewModel.extend = extend;
@@ -454,6 +465,17 @@
         }
     };
 
+    mvvm.Filters = _.extend({}, {
+       isFalse: function(val){ return val === false; }, 
+       isNull: _.isNull,
+       isUndefined: _.isUndefined,
+       isObject: _.isObject,
+       isNullOrUndefined: function(val){ return val === undefined || val === null; },
+       isEmpty: function(val){
+   return val === undefined || val === null || val === '';
+    }
+    });
+    
     mvvm.ModelNavMixins = {
         splitModelPath: function(path) {
             var matches;
@@ -470,6 +492,7 @@
             }
             options = _.defaults(options, {
                 evalVal: true,
+                applyFilter: true,
                 allowPartial: true
             });
 
@@ -530,11 +553,12 @@
             }
 
             var result1 = (modLvl !== undefined && modLvl !== null && modLvl.length > 0) ? _.last(modLvl) : modLvl;
-            var result2 = this._applyBindExpression(expression, result1, model);
-            if (result2 !== result1) {
-                modLvl.push(result2);
+            if(options.applyFilter){
+                var result2 = this._applyBindExpression(expression, result1, model);
+                if (result2 !== result1) {
+                    modLvl.push(result2);
+                }
             }
-
             return modLvl;
         },
         resolveModelExpressionValue: function(model, expression) {
@@ -549,6 +573,9 @@
         _applyBindExpression: function(expression, value, context) {
             var transform;
             if (_.has(expression, 'filter') && _.isString(expression.filter)) {
+                context = context.clone();
+                context.createField('Filter', Object);
+                context.set('Filter', mvvm.Filters);
                 var filter = this.resolveModelPath(context, expression.filter, {evalVal: false, allowPartial: false});
                 if (!_.isArray(filter)) {
                     throw 'Invalid filter, path does not exist';
@@ -630,7 +657,8 @@
                     newEvt.oldValue = record.value;
 
                     var newVal = this.resolveModelExpression(record.model, record.expression);
-                    newVal = this._applyBindExpression(record.expression, newVal, record.model);
+                    //not sure why this was here, it's redundant
+                    //newVal = this._applyBindExpression(record.expression, newVal, record.model);
                     if (newVal.length === parts.length + 1) {
                         newVal = _.last(lvls);
                     } else {

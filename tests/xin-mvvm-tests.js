@@ -1,42 +1,129 @@
 ﻿(function ($) {
     var mvvm = $x.namespace('XMVVM');
 
+/*******************************************************************
+First a few classes that will be used throughout the various tests
+********************************************************************/
+    var song = mvvm.Model.extend({
+        fields: {
+            Artist: String,
+            Title: String
+        },
+
+        initialize: function () {
+            this.Play = _.bind(this.Play, this);
+        },
+
+        Play: function () {
+            console.log('Playing song ' + this.Title());
+        }
+    });
+
+    var songCollection = mvvm.Collection.extend({
+        model: song
+    });
+
+    var album = mvvm.Model.extend({
+        fields: {
+            Title: String,
+            Artist: String,
+            Slug: String,
+            Year: Number,
+            Songs: songCollection,
+            IsFavorite: Boolean
+        }
+    });
+
+    var albumCollection = mvvm.Collection.extend({
+        model: album
+    });
+
+    var musicCollection = mvvm.Model.extend({
+        fields: {
+            Title: { type: String },
+            Albums: { type: albumCollection },
+            TestNum: { type: Number },
+        },
+
+        getTime: function(){
+            return new Date().toString();
+        }
+    });
+    
+    var person = mvvm.Model.extend({
+        fields: {
+            Name: String,
+            Title: String
+        }
+    });
+    
+    var personCollection = mvvm.Collection.extend({
+        model: person
+    });
+    
+    var organization = mvvm.Model.extend({
+       fields: {
+           Name: String,
+           Boss: person,
+           Peons: personCollection
+       }
+    });
+    
+    var orgCollection = mvvm.Collection.extend({
+        model: organization
+    });
+    
+    mvvm.Model.createField(organization.prototype, 'ChildOrgs', orgCollection);
+/*******************************************************************
+Let the tests begin
+********************************************************************/
+
+    test('Test Field Change Events', function(){
+       var data = new albumCollection(musicLibrary, { parse: true });
+      
+       var inst = data.at(0);
+       
+       equal(inst.Artist(), "The Beatles", "Testing getting a field");
+       equal(inst.Title(), "A Hard Day's Night", "Testing getting a field");
+       
+       var changeVal =0;
+       //Ensure we're getting change events
+       inst.once('change:Title', function(evt){ changeVal = true; } );
+       inst.Title("Success!");
+       equal(changeVal, true, 'test listening for a property change');
+       
+       changeVal = false;
+       inst.on('change', function(evt){ changeVal = true; });
+       //Should not trigger the change due, since we aren't listening to bubbled events
+       inst.Songs().at(0).Title('changed');
+       equal(changeVal, false, 'ensure bubbled events are note being handled unless specified');
+       inst.off('change');
+       inst.on('change', function(evt){ changeVal = true; }, undefined, true);
+       inst.Songs().at(0).Title('changed again');
+       equal(changeVal, true, 'now testing that bubbled events get triggered when specified');
+    });
+
     test('Two-way Attribute Binding Test', function () {
-
-        var modClass1 = mvvm.Model.extend({
-            fields: {
-                'Property1': { type: String }
-            }
-        });
-
-        var modClass2 = mvvm.Model.extend({
-            fields: {
-                'Property2': { type: modClass1 }
-            }
-        });
-
-        var model = new modClass2();
-        model.Property2(new modClass1());
-        model.Property2().Property1('Initial Value');
+        var model = new organization(orgHierarchyData, { parse: true });
         var $el = $('#xin-mvvm-attributebinding-test > input[name="testval"]');
 
         var binding = new mvvm.AttributeBinding({
-            model: model,
-            expression: {path: 'Property2.Property1'},
-            el: $el,
-            attr: 'value'
+             model: model,
+             expression: {path: 'Boss.Name'},
+             el: $el,
+             attr: 'value'
         });
 
-        model.Property2().Property1('Second Value');
+        model.Boss().Name('Second Value');
         console.log($el.val());
-        console.log(model.Property2().Property1());
+        console.log(model.Boss().Name());
         equal($el.val(), 'Second Value', "Attribute Value Change Succeeded!");
 
         $el.on('change', function () { console.log('Change event'); });
         $el.val('Third Value').trigger('change');
         console.log($el.val());
-        console.log(model.Property2().Property1());
-        equal(model.Property2().Property1(), 'Third Value', 'Element Value Change Succeeded!');
+        console.log(model.Boss().Name());
+        equal(model.Boss().Name(), 'Third Value', 'Element Value Change Succeeded!');
     });
 
     test('Text Node Binding Test', function () {
@@ -61,6 +148,8 @@
 
         model1.Property1('first try');
         equal(el.nodeValue, 'This is a first try', 'Verifying Bound Contents');
+        model1.Property1('second & try');
+        equal(el.nodeValue, 'This is a second & try', 'Verifying Bound Contents');
     });
 
     test('DOM Event Binding Test', function () {
@@ -198,47 +287,26 @@
         notEqual(inst, null);
     });
 
-    var song = mvvm.Model.extend({
-        fields: {
-            Artist: { type: String },
-            Title: { type: String }
-        },
+    test('Test built in Filters object', function(){
+        var model = new organization(orgHierarchyData, { parse: true });
+        var $el = $('#xin-mvvm-attributebinding-test > input[name="testval"]');
+        $el.val();
+        var binding = new mvvm.AttributeBinding({
+             model: model,
+             expression: {path: 'Boss.Name', filter: 'Filter.isEmpty'},
+             el: $el,
+             attr: 'value'
+        });
 
-        initialize: function () {
-            this.Play = _.bind(this.Play, this);
-        },
+        model.Boss().Name('');
+        console.log($el.val());
+        console.log(model.Boss().Name());
+        equal($el.val(), 'true', "Attribute Value Change Succeeded!");
 
-        Play: function () {
-            console.log('Playing song ' + this.Title());
-        }
-    });
-
-    var songCollection = mvvm.Collection.extend({
-        model: song
-    });
-
-    var album = mvvm.Model.extend({
-        fields: {
-            Title: { type: String },
-            Slug: { type: String},
-            Songs: { type: songCollection },
-            IsFavorite: { type: Boolean }
-        }
-    });
-
-    var albumCollection = mvvm.Collection.extend({
-        model: album
-    });
-
-    var musicCollection = mvvm.Model.extend({
-        fields: {
-            Title: { type: String },
-            Albums: { type: albumCollection },
-            TestNum: { type: Number },
-        },
-
-        getTime: function(){
-            return new Date().toString();
-        }
+        $el.on('change', function () { console.log('Change event'); });
+        $el.val('Third Value').trigger('change');
+        console.log($el.val());
+        console.log(model.Boss().Name());
+        equal(model.Boss().Name(), 'Third Value', 'Element Value Change Succeeded!');      
     });
 } (jQuery));
