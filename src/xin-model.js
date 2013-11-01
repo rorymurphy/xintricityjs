@@ -709,16 +709,20 @@
 
     mvvm.Router = Backbone.Router.extend({
        initialize: function (options) {
+           var t=this;
+           _.bindAll(this, 'canRoute');
+           options = options || {};
           _.defaults(options, {
               root: '/',
-              startHistory: true
+              startHistory: true,
+              pushState: true
           });
           
           if(options.startHistory){
-              Backbone.history.start({pushState: true, root: options.root});
+              Backbone.history.start({pushState: options.pushState, root: options.root});
           }
           
-          var baseFull = location.protocol+'//'+location.hostname+(location.port ? ':'+location.port: '') + baseUrl;
+          var baseFull = location.protocol+'//'+location.hostname+(location.port ? ':'+location.port: '') + options.root;
           
           $(document).on('click', 'a:not([data-bypass])', function (evt) {
 
@@ -727,18 +731,23 @@
 
             if (href.substr(0, baseFull.length) === baseFull && $(this).attr('target') !== '_blank' && $(this).attr('rel') !== 'external') {
               var tail = href.substr(baseFull.length);
-              var isRouted = this.canRoute(tail);
+              
+              var isRouted = t.canRoute(tail);
               if(isRouted){
                   evt.preventDefault(); 
-                  this.navigate(tail, {trigger: true});
+                  t.navigate(tail, {trigger: true});
               }
             }
           });
         },        
         
         canRoute: function(fragmentOverride) {
-          var fragment = this.fragment = this.getFragment(fragmentOverride);
-          var matched = _.any(this.handlers, function(handler) {
+          var pathStripper = /[?#].*$/;
+          var fragment = this.root + Backbone.history.getFragment(fragmentOverride);
+          
+          fragment = fragment.replace(pathStripper, '');
+          if(fragment = Backbone.history.fragment){ return false; }
+          var matched = _.any(Backbone.history.handlers, function(handler) {
             if (handler.route.test(fragment)) {
               return true;
             }

@@ -1409,7 +1409,24 @@ var extend = $x.extendClass
       });
     }
 
-  });  // Backbone.History
+  });
+  
+  var noXhrPatch = typeof window !== 'undefined' && !!window.ActiveXObject && !(window.XMLHttpRequest && (new XMLHttpRequest).dispatchEvent);
+
+  // Map from CRUD to HTTP for our default `Backbone.sync` implementation.
+  var methodMap = {
+    'create': 'POST',
+    'update': 'PUT',
+    'patch':  'PATCH',
+    'delete': 'DELETE',
+    'read':   'GET'
+  };
+
+  // Set the default implementation of `Backbone.ajax` to proxy through to `$`.
+  // Override this if you'd like to use a different library.
+  Backbone.ajax = function() {
+    return Backbone.$.ajax.apply(Backbone.$, arguments);
+  };  // Backbone.History
   // ----------------
 
   // Handles cross-browser history management, based on either
@@ -1641,13 +1658,97 @@ var extend = $x.extendClass
 
   // Create the default Backbone.history.
   Backbone.history = new History;
-/* 
- * To change this template, choose Tools | Templates
- * and open the template in the editor.
- */
+  // Backbone.Router
+  // ---------------
 
+  // Routers map faux-URLs to actions, and fire events when routes are
+  // matched. Creating a new one sets its `routes` hash, if not set statically.
+  var Router = Backbone.Router = function(options) {
+    options || (options = {});
+    if (options.routes) this.routes = options.routes;
+    this._bindRoutes();
+    this.initialize.apply(this, arguments);
+  };
 
-  // Set up inheritance for the model, collection, router, view and history.
+  // Cached regular expressions for matching named param parts and splatted
+  // parts of route strings.
+  var optionalParam = /\((.*?)\)/g;
+  var namedParam    = /(\(\?)?:\w+/g;
+  var splatParam    = /\*\w+/g;
+  var escapeRegExp  = /[\-{}\[\]+?.,\\\^$|#\s]/g;
+
+  // Set up all inheritable **Backbone.Router** properties and methods.
+  _.extend(Router.prototype, Events, {
+
+    // Initialize is an empty function by default. Override it with your own
+    // initialization logic.
+    initialize: function(){},
+
+    // Manually bind a single named route to a callback. For example:
+    //
+    //     this.route('search/:query/p:num', 'search', function(query, num) {
+    //       ...
+    //     });
+    //
+    route: function(route, name, callback) {
+      if (!_.isRegExp(route)) route = this._routeToRegExp(route);
+      if (_.isFunction(name)) {
+        callback = name;
+        name = '';
+      }
+      if (!callback) callback = this[name];
+      var router = this;
+      Backbone.history.route(route, function(fragment) {
+        var args = router._extractParameters(route, fragment);
+        callback && callback.apply(router, args);
+        router.trigger.apply(router, ['route:' + name].concat(args));
+        router.trigger('route', name, args);
+        Backbone.history.trigger('route', router, name, args);
+      });
+      return this;
+    },
+
+    // Simple proxy to `Backbone.history` to save a fragment into the history.
+    navigate: function(fragment, options) {
+      Backbone.history.navigate(fragment, options);
+      return this;
+    },
+
+    // Bind all defined routes to `Backbone.history`. We have to reverse the
+    // order of the routes here to support behavior where the most general
+    // routes can be defined at the bottom of the route map.
+    _bindRoutes: function() {
+      if (!this.routes) return;
+      this.routes = _.result(this, 'routes');
+      var route, routes = _.keys(this.routes);
+      while ((route = routes.pop()) != null) {
+        this.route(route, this.routes[route]);
+      }
+    },
+
+    // Convert a route string into a regular expression, suitable for matching
+    // against the current location hash.
+    _routeToRegExp: function(route) {
+      route = route.replace(escapeRegExp, '\\$&')
+                   .replace(optionalParam, '(?:$1)?')
+                   .replace(namedParam, function(match, optional) {
+                     return optional ? match : '([^\/]+)';
+                   })
+                   .replace(splatParam, '(.*?)');
+      return new RegExp('^' + route + '$');
+    },
+
+    // Given a route, and a URL fragment that it matches, return the array of
+    // extracted decoded parameters. Empty or unmatched parameters will be
+    // treated as `null` to normalize cross-browser behavior.
+    _extractParameters: function(route, fragment) {
+      var params = route.exec(fragment).slice(1);
+      return _.map(params, function(param) {
+        return param ? decodeURIComponent(param) : null;
+      });
+    }
+
+  });  // Set up inheritance for the model, collection, router, view and history.
   // RAM - Removed View.extend, as Xintricity does not have a View object
   Model.extend = Collection.extend = Router.extend = History.extend = extend;
 
@@ -2184,13 +2285,16 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
             return value;
         },
         parse: function(res) {
+            var result = {};
             _.each(this.fields, function(elem, index, list) {
                 if (Backbone.Model.isParentTypeOf(elem.type) || Backbone.Collection.isParentTypeOf(elem.type)) {
-                    res[elem.name] = new elem.type(res[elem.name], {parse: true});
+                    result[elem.name] = new elem.type(res[elem.name], {parse: true});
+                }else{
+                    result[elem.name] = res[elem.name];
                 }
             });
 
-            return res;
+            return result;
         }
     });
     mvvm.Model.extend = function(protoProps, staticProps) {
@@ -2264,6 +2368,17 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
         }
     };
 
+    mvvm.Filters = _.extend({}, {
+       isFalse: function(val){ return val === false; }, 
+       isNull: _.isNull,
+       isUndefined: _.isUndefined,
+       isObject: _.isObject,
+       isNullOrUndefined: function(val){ return val === undefined || val === null; },
+       isEmpty: function(val){
+   return val === undefined || val === null || val === '';
+    }
+    });
+    
     mvvm.ModelNavMixins = {
         splitModelPath: function(path) {
             var matches;
@@ -2280,6 +2395,7 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
             }
             options = _.defaults(options, {
                 evalVal: true,
+                applyFilter: true,
                 allowPartial: true
             });
 
@@ -2340,11 +2456,12 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
             }
 
             var result1 = (modLvl !== undefined && modLvl !== null && modLvl.length > 0) ? _.last(modLvl) : modLvl;
-            var result2 = this._applyBindExpression(expression, result1, model);
-            if (result2 !== result1) {
-                modLvl.push(result2);
+            if(options.applyFilter){
+                var result2 = this._applyBindExpression(expression, result1, model);
+                if (result2 !== result1) {
+                    modLvl.push(result2);
+                }
             }
-
             return modLvl;
         },
         resolveModelExpressionValue: function(model, expression) {
@@ -2359,6 +2476,9 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
         _applyBindExpression: function(expression, value, context) {
             var transform;
             if (_.has(expression, 'filter') && _.isString(expression.filter)) {
+                context = context.clone();
+                context.createField('Filter', Object);
+                context.set('Filter', mvvm.Filters);
                 var filter = this.resolveModelPath(context, expression.filter, {evalVal: false, allowPartial: false});
                 if (!_.isArray(filter)) {
                     throw 'Invalid filter, path does not exist';
@@ -2440,7 +2560,8 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
                     newEvt.oldValue = record.value;
 
                     var newVal = this.resolveModelExpression(record.model, record.expression);
-                    newVal = this._applyBindExpression(record.expression, newVal, record.model);
+                    //not sure why this was here, it's redundant
+                    //newVal = this._applyBindExpression(record.expression, newVal, record.model);
                     if (newVal.length === parts.length + 1) {
                         newVal = _.last(lvls);
                     } else {
@@ -2491,16 +2612,20 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
     mvvm.Router = Backbone.Router.extend({
        initialize: function (options) {
+           var t=this;
+           _.bindAll(this, 'canRoute');
+           options = options || {};
           _.defaults(options, {
               root: '/',
-              startHistory: true
+              startHistory: true,
+              pushState: true
           });
           
           if(options.startHistory){
-              Backbone.history.start({pushState: true, root: options.root});
+              Backbone.history.start({pushState: options.pushState, root: options.root});
           }
           
-          var baseFull = location.protocol+'//'+location.hostname+(location.port ? ':'+location.port: '') + baseUrl;
+          var baseFull = location.protocol+'//'+location.hostname+(location.port ? ':'+location.port: '') + options.root;
           
           $(document).on('click', 'a:not([data-bypass])', function (evt) {
 
@@ -2509,18 +2634,23 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
             if (href.substr(0, baseFull.length) === baseFull && $(this).attr('target') !== '_blank' && $(this).attr('rel') !== 'external') {
               var tail = href.substr(baseFull.length);
-              var isRouted = this.canRoute(tail);
+              
+              var isRouted = t.canRoute(tail);
               if(isRouted){
                   evt.preventDefault(); 
-                  this.navigate(tail, {trigger: true});
+                  t.navigate(tail, {trigger: true});
               }
             }
           });
         },        
         
         canRoute: function(fragmentOverride) {
-          var fragment = this.fragment = this.getFragment(fragmentOverride);
-          var matched = _.any(this.handlers, function(handler) {
+          var pathStripper = /[?#].*$/;
+          var fragment = this.root + Backbone.history.getFragment(fragmentOverride);
+          
+          fragment = fragment.replace(pathStripper, '');
+          if(fragment = Backbone.history.fragment){ return false; }
+          var matched = _.any(Backbone.history.handlers, function(handler) {
             if (handler.route.test(fragment)) {
               return true;
             }
@@ -2607,7 +2737,7 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
         },
 
         bindModel: function () {
-            this._modelPath = this.resolveModelExpression(this.options.model, this.options.expression, { evalVal: false, allowPartial: false });
+            this._modelPath = this.resolveModelExpression(this.options.model, this.options.expression, { evalVal: false, applyFilter: false, allowPartial: false });
             this.bindModelExpression(this.options.model, this.options.expression, this.modelChanged);
         },
 
@@ -2622,10 +2752,12 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
             var val = this._modelPath[this._modelPath.length - 1];
             if (_.isFunction(val)) {
-                return val();
+                val = val();
             } else {
-                return val;
+                val = val;
             }
+            
+            return this._applyBindExpression(this.options.expression, val, this.options.model);
         },
 
         setModelAttr: function (val) {
@@ -2651,7 +2783,7 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
         modelChanged: function (event, model, options) {
             var t = this;
 
-            this._modelPath = this.resolveModelExpression(this.options.model, this.options.expression, { evalVal: false, allowPartial: false });
+            this._modelPath = this.resolveModelExpression(this.options.model, this.options.expression, { evalVal: false, applyFilter: false, allowPartial: false });
 
             // Don't update the id attribute, regardless of the updateElement
             // flag
@@ -3210,6 +3342,9 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
     });
     $x.extend(mvvm.StyleTrigger.prototype, mvvm.ModelNavMixins);
 
+    mvvm.Actions = _.extend({}, {
+        
+    });
     mvvm.ActionTrigger = mvvm.Trigger.extend({
         defaults: {
             el: null,
