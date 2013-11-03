@@ -229,7 +229,9 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
             var vals = [t.options.pattern];
             var html=false;
             _.each(t.options.paths, function (p) {
-                var v = t.value(p).toString();
+                var v = t.value(p);
+                if(undefined == v){ v=''; }                     
+                else{ v = v.toString();}
                 if(_.has(p, 'html') && p.html === 'true'){
                     vals.push(v);
                     html=true;
@@ -556,7 +558,7 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
         onTriggerInv: function (evt) { },
         onTriggerInternal: function(evt){
             var t = this;
-            var nEvt = new mvvm.Event({event: t.options.event});
+            var nEvt = new mvvm.Event({event: t.options.event, target: evt.target});
             t.onTrigger(nEvt);
             if(nEvt.isDefaultPrevented())
             { evt.preventDefault(); }
@@ -726,7 +728,7 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
         t._logicBlocks = [];
         t._nestedTemplates = [];
 
-        t.excludeNestedScopes = function (idx) { return $(this).parentsUntil(t.$el, '[data-xt-foreach],[data-xt-if],[data-xt-elseif],[data-xt-else]').length > 0; };
+        t.excludeNestedScopes = function (idx) { return $(this).parentsUntil(t.$el, tmplBlock.childScopeSelector).length > 0; };
         if (t.options.el) {
             if (t.options.el instanceof $) {
                 t.options.el = t.options.el.get(0);
@@ -741,7 +743,7 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
             && _.isString(t.options.type)) { t.parse(); }
     };
 
-
+    tmplBlock.childScopeSelector = '[data-xt-foreach],[data-xt-if],[data-xt-elseif],[data-xt-else]';
     tmplBlock.attributeBindingPattern = /^\{\{[a-zA-Z][\w\._]*\}\}$/;
     tmplBlock.textBindingPattern = /\{\{([a-zA-Z][\w\._]*|([a-zA-z]\w*\s*=\s*('[^']*'|"[^"]*"),?\s*)+)\}\}/g;
     tmplBlock.extend = $x.extendClass;
@@ -765,7 +767,7 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
             t.parseSelectBindings();
 
-            var blocks = t.$el.find('*').not(t.excludeNestedScopes);
+            var blocks = t.$el.find('*').not(tmplBlock.childScopeSelector).not(t.excludeNestedScopes).add(t.$el);
 
             blocks.each(function (idx, elem) {
                 t.parseAttributeBindings(elem);
@@ -825,7 +827,8 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
                     type: 'foreach',
                     position: t.calculatePosition($el, t.$el),
                     expression: t.parseBinding($el.data('xt-foreach')),
-                    iterator: $el.data('xt-iterator')
+                    iterator: $el.data('xt-iterator'),
+                    indexer: $el.data('xt-index')
                 });
                 if ($el.is('[data-xt-onrender]')) {
                     bBlock.options.onrender = t.parseBinding($el.data('xt-onrender'));
@@ -1065,8 +1068,12 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
         },
 
         calculatePosition: function (child, parent) {
+            //If the attributes are on the logic block element itself
+            if(child === parent){ return []; }
+            
             child = $(child);
             parent = $(parent);
+
             var parents = child.parentsUntil(parent);
             if (child.closest(parent).length === 0) {
                 return undefined;
@@ -1383,7 +1390,7 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
             t.$el.remove();
             t.setEl($next);
 
-            if (_.has(block.options, 'onrender')) {
+            if (block && _.has(block.options, 'onrender')) {
                 var action = t.resolveModelExpression(t.options.context, block.options.onrender);
                 if (_.isArray(action) && action.length > 0) {
                     action = _.last(action);
@@ -1426,6 +1433,7 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
             t.clear();
             if (t.value && t.value.length > 0) {
                 var iterName = block.options.iterator;
+                var indexerName = _.has(block.options, 'indexer')?block.options.indexer:undefined;
                 var innerElem = block.$el.clone().children();
 
                 //Clean up the HTML
@@ -1435,6 +1443,10 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
                     //var iterVal = _.last(t.resolveModelPath(elem, t.options.block.options.expression, {allowPartial: false}));
                     var attrs = {};
+                    
+                    if(indexerName !== undefined){
+                        attrs[indexerName] = idx;
+                    }
                     attrs[iterName] = elem; //iterVal;
                     var context = t.createContext(attrs, t.options.context);
 

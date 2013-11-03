@@ -471,9 +471,11 @@
        isUndefined: _.isUndefined,
        isObject: _.isObject,
        isNullOrUndefined: function(val){ return val === undefined || val === null; },
-       isEmpty: function(val){
-   return val === undefined || val === null || val === '';
-    }
+       isEmpty: function(val){ return val === undefined || val === null || val === ''; },
+       isEqualTo0: function(val){ return val === 0; },
+       isEqualTo1: function(val){ return val === 1;},
+       isGreaterThan0: function(val){ return val > 0; },
+       isLessThan0: function(val){ val < 0; }
     });
     
     mvvm.ModelNavMixins = {
