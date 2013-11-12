@@ -1967,13 +1967,18 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
         //Allow just the field type to be passed in rather than a full field definition
         if (_.isFunction(options)) {
             options = {type: options};
-            t.fields[key] = options;
         }
-
-        if (!_.has(this.fields, key)) {
-            t.fields[key] = options;
-        }
-        t.fields[key]["name"] = key;
+        
+        _.defaults(options, {
+           persist: true,
+           type: Object
+        });
+        options['name'] = key;
+        
+        t.fields[key] = options;
+//        if (!_.has(this.fields, key)) {
+//            t.fields[key] = options;
+//        }
 
         t[key] = function() {
             if (arguments.length === 1) {
@@ -2153,6 +2158,9 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
             var t=this;
             var atts = _.clone(t.attributes);
             _.each(atts, function(val, key){
+                //If persistence is turned off for this field, ignore it
+                if(_.has(t.fields, key) && ! t.fields[key].persist){return;}
+                
                 if(val instanceof mvvm.Model
                     || val instanceof mvvm.Collection){
                     atts[key] = val.toJSON();
@@ -2299,7 +2307,15 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
     });
     mvvm.Model.extend = function(protoProps, staticProps) {
         var t = this;
+        
+        //fields get special treatment
+        if(protoProps.fields){
+            var fields = protoProps.fields;
+            delete protoProps.fields;
+        }
         var obj = extend.call(t, protoProps, staticProps);
+        
+        if(fields){ protoProps.fields = fields; }
         if (t.prototype.fields) {
             _.each(t.prototype.fields, function(val, key) {
                 createFieldInternal.call(obj.prototype, key, val);
@@ -2894,7 +2910,9 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
             var vals = [t.options.pattern];
             var html=false;
             _.each(t.options.paths, function (p) {
-                var v = t.value(p).toString();
+                var v = t.value(p);
+                if(undefined == v){ v=''; }                     
+                else{ v = v.toString();}
                 if(_.has(p, 'html') && p.html === 'true'){
                     vals.push(v);
                     html=true;
