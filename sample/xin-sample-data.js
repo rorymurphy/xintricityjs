@@ -14,7 +14,10 @@
            Artist: String,
            Category: String,
            IsFavorite: Boolean
-       } 
+       },
+       defaults: {
+           IsFavorite: false
+       }
     });
     
     exports.songCollection = mvvm.Collection.extend({

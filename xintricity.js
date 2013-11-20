@@ -2657,23 +2657,30 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
               if(isRouted){
                   evt.preventDefault(); 
                   t.navigate(tail, {trigger: true});
+              }else if(tail == Backbone.history.fragment){
+                  evt.preventDefault();
               }
             }
           });
         },        
         
-        canRoute: function(fragmentOverride) {
+        canRoute: function(fragment) {
+          var t = this;          
+          if (!Backbone.History.started) return false;
+          var url = this.root + (fragment = Backbone.history.getFragment(fragment || ''));
+      
+
           var pathStripper = /[?#].*$/;
-          var fragment = this.root + Backbone.history.getFragment(fragmentOverride);
-          
           fragment = fragment.replace(pathStripper, '');
-          if(fragment = Backbone.history.fragment){ return false; }
-          var matched = _.any(Backbone.history.handlers, function(handler) {
+          
+          if(fragment === Backbone.history.fragment){ return false; }
+          
+          fragment = Backbone.history.getFragment(fragment);
+          return _.any(Backbone.history.handlers, function(handler) {
             if (handler.route.test(fragment)) {
               return true;
             }
           });
-          return matched;
         }
     });
     return mvvm;
