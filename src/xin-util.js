@@ -80,10 +80,13 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
     $x.extend = function(obj) {
         _.each(Array.prototype.slice.call(arguments, 1), function(source) {
           if (source) {
-              
+            var hasGetterSetter = typeof {}.__lookupGetter__ !== 'undefined';
             for (var i in source) {
-                var g = source.__lookupGetter__(i), s = source.__lookupSetter__(i);
-
+                var g,s;
+                if(hasGetterSetter){
+                    g = source.__lookupGetter__(i);
+                    s = source.__lookupSetter__(i);
+                }
                 if ( g || s ) {
                     if ( g )
                         obj.__defineGetter__(i, g);

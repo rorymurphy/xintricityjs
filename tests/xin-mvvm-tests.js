@@ -1,5 +1,5 @@
 ﻿(function ($) {
-    var mvvm = $x.namespace('XMVVM');
+    var mvvm = XMVVM;
 
 /*******************************************************************
 First a few classes that will be used throughout the various tests
