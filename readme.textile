@@ -1,2 +1,11 @@
-h1. Xintricity.js
+h1. What is Xintricity?
+Xintricity is the multi-tool of web frameworks. Like the multi-tool drew inspiration from the pocketknife, Xintricity.js draws inspiration from a number of places including Knockout.js, Angular.js, Ember.js, Twitter Bootstrap and Xaml. However, diving into each of these frameworks, each was either missing key functionality, contorting simple problems to fit a complex framework, or learning yet another new API for features bedrock libraries like jQuery and underscore already provide.
+
+Xintricity provides all of the model binding niceties of other MVVM frameworks, but with the added benefit of being unobtrusive and highly modular. It’s built on the foundation of 3 top libraries: jQuery, Backbone.js, and underscore.js. Along with these, the Xintricity template engine provides a natural interface to create rich views with data binding, logical structures, and partial views while using fully compliant HTML5 syntax. This allows Xintricity to provide a very simple API to build web applications while still retaining all the power of the underlying libraries allowing developers to tweak things when necessary. It also allows Xintricity to be extremely lightweight, coming in just under 10KB minified and gzipped.
+
+h2. Why Xintricity?
+While there are quite a few nice MVVM frameworks out on the web, what really sets Xintricity apart is its modularity – virtually every aspect of Models and Collections can be customized and it supports partial templates as an easy way to substitute portions of a view. Xintricity also plays nicely as a component of your HTML/javascript application, as opposed to dictating a design to you as some other frameworks. You can use Xintricity.js to render a whole page, or just a small piece, and you can compose your page of several separate templates with their own individual models, or even mix it with other template engines. This becomes crucial when developing complex applications where you may not have control over the entire page, such as in a Content Management System.
+
+h2. Give me more
+Of course! All the documentation, examples, and more can be found at http://www.xintricity.com/js/.
 

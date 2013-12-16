@@ -22,7 +22,7 @@ and open the template in the editor.
         <div id="template-playlist" style="display:none;" data-xt-template="xintricity">
             <h4>{{model.Name}}</h4>
             <table>
-                <thead><th>Title</th><th>Artist</th><th>Category</th><th>Favorite?</th></thead>
+                <thead><tr><th>Title</th><th>Artist</th><th>Category</th><th>Favorite?</th></tr></thead>
                 <tbody data-xt-foreach="{{model.Songs}}" data-xt-iterator="song">
                     <tr>
                         <td>{{song.Title}}</td>
