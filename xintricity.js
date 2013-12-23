@@ -2416,10 +2416,13 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
             }
             options = _.defaults(options, {
                 evalVal: true,
-                applyFilter: true,
                 allowPartial: true
             });
-
+            //Have to apply the default for applyFilter after evalVal
+            options = _.defaults(options, {
+                applyFilter: options.evalVal
+            });
+            
             var t = this;
             var modelLevels = [];
             var modLvl = [model];
@@ -2781,8 +2784,6 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
             var val = this._modelPath[this._modelPath.length - 1];
             if (_.isFunction(val)) {
                 val = val();
-            } else {
-                val = val;
             }
             
             return this._applyBindExpression(this.options.expression, val, this.options.model);
@@ -3070,10 +3071,10 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
             var val = this._modelPath[this._modelPath.length - 1];
             if (_.isFunction(val)) {
-                return val();
-            } else {
-                return val;
+                val = val();
             }
+            
+            return this._applyBindExpression(this.options.expression, val, this.options.model);
         },
 
         modelChanged: function (event, model, options) {

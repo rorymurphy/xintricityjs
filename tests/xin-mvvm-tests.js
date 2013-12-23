@@ -4,76 +4,16 @@
 /*******************************************************************
 First a few classes that will be used throughout the various tests
 ********************************************************************/
-    var song = mvvm.Model.extend({
-        fields: {
-            Artist: String,
-            Title: String
-        },
+var song = XTest.song;
+var songCollection = XTest.songCollection;
+var album = XTest.album;
+var albumCollection = XTest.albumCollection;
+var musicCollection = XTest.musicCollection
 
-        initialize: function () {
-            this.Play = _.bind(this.Play, this);
-        },
-
-        Play: function () {
-            console.log('Playing song ' + this.Title());
-        }
-    });
-
-    var songCollection = mvvm.Collection.extend({
-        model: song
-    });
-
-    var album = mvvm.Model.extend({
-        fields: {
-            Title: String,
-            Artist: String,
-            Slug: String,
-            Year: Number,
-            Songs: songCollection,
-            IsFavorite: Boolean
-        }
-    });
-
-    var albumCollection = mvvm.Collection.extend({
-        model: album
-    });
-
-    var musicCollection = mvvm.Model.extend({
-        fields: {
-            Title: { type: String },
-            Albums: { type: albumCollection },
-            TestNum: { type: Number },
-        },
-
-        getTime: function(){
-            return new Date().toString();
-        }
-    });
-    
-    var person = mvvm.Model.extend({
-        fields: {
-            Name: String,
-            Title: String
-        }
-    });
-    
-    var personCollection = mvvm.Collection.extend({
-        model: person
-    });
-    
-    var organization = mvvm.Model.extend({
-       fields: {
-           Name: String,
-           Boss: person,
-           Peons: personCollection
-       }
-    });
-    
-    var orgCollection = mvvm.Collection.extend({
-        model: organization
-    });
-    
-    mvvm.Model.createField(organization.prototype, 'ChildOrgs', orgCollection);
+var person = XTest.person;
+var personCollection = XTest.personCollection;
+var organization = XTest.organization;
+var orgCollection = XTest.orgCollection;
 /*******************************************************************
 Let the tests begin
 ********************************************************************/

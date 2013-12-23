@@ -510,10 +510,13 @@
             }
             options = _.defaults(options, {
                 evalVal: true,
-                applyFilter: true,
                 allowPartial: true
             });
-
+            //Have to apply the default for applyFilter after evalVal
+            options = _.defaults(options, {
+                applyFilter: options.evalVal
+            });
+            
             var t = this;
             var modelLevels = [];
             var modLvl = [model];
