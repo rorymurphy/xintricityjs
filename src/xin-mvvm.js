@@ -31,6 +31,639 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 }(this, function ($, _, $x, mvvm) {
     'use strict';
 
+    mvvm.NodeTypes = [];
+    var templateNode = mvvm.templateNode = function(options){
+        var t=this;
+        options = _.defaults(options, {
+           childNodes: [],
+           el: null,
+           $el: null,
+           inner: null,
+           parent: null
+        });
+        if(options.el && !options.$el){ options.$el = $(options.el); }
+        if(!(options.$el instanceof $)){ options.$el = $(options.$el); }
+        options.el = options.$el.get(0);
+        _.extend(t, options);
+        this.initialize();
+    }
+    _.extend(templateNode.prototype, {
+        initialize: function(){
+            _.bindAll(this, 'createInstance');
+        },
+        createInstance: function($el, context){
+            return this.type.createInstance(this, $el, context);
+        } 
+    });
+    
+    var resolveElement = function ($el, indices) {
+            var curr = $el;
+            _.each(indices, function (val) {
+                curr = curr.contents().eq(val);
+            });
+
+            return curr;
+    }
+        
+    var templateParser = mvvm.templateParser = function(){
+        this.initialize();
+    };
+
+    _.extend(templateParser.prototype, {
+        initialize: function(){
+            _.bindAll(this, 'parse', '_parse', 'calculatePosition');
+            var t = this;
+            t.childScopeSelector = '';
+            t.parseFunctions = {};
+            _.each(mvvm.NodeTypes, function(val){
+               var parser = _.defaults(val, {
+                   name: null,
+                   type: 'bind', //types: tree, block, bind
+                   selector: null,
+                   parse: null,
+                   render: null
+                });
+                if(parser.name === null || parser.name === ''){ throw "Parser must specify a name"; }
+                if(parser.parse === null || !_.isFunction(parser.parse)){ throw "Must specify a valid parse function"; }
+                if(parser.type === 'block' && (parser.selector == null || parser.selector == '')){ throw "If parser is a block, must specify a selector for all nested scopes."; }
+
+                t.parseFunctions[parser.name] = _.bind(parser.parse, t);
+                if(parser.type === 'block'){
+                    if(t.childScopeSelector != '')
+                    { t.childScopeSelector += ','; }
+                    t.childScopeSelector += parser.selector;
+                }
+
+            });
+
+            var excludeNestedScopesInner = function ($el, idx) { return $(this).parentsUntil($el, t.childScopeSelector).length > 0; };
+            t.excludeNestedScopes = function($el){ return _.partial(excludeNestedScopesInner, $el); };
+        },
+        parse: function(el){
+            var t=this;
+            var innerNodes = [];
+            if(typeof(t.parserFunctions) === 'undefined'){ t.initialize(); }
+            var node = new templateNode({
+                el: $(el),
+                inner: $(el).children()
+            });
+            var innerNodes = innerNodes.concat(t._parse(node));
+            while(innerNodes.length > 0){
+                var b = innerNodes.shift();
+                var n = t._parse(b);
+                if(_.isArray(n) && n.length > 0){
+                    innerNodes.push.apply(innerNodes, n);
+                }
+            }
+            return node;
+        },
+        _parse: function(node){
+            var t=this;
+            var innerNodes = [];
+            var nodeTypes = mvvm.NodeTypes;
+            _.each(_.where(nodeTypes, {type: 'tree'}), function(val){
+                innerNodes = innerNodes.concat(t.parseFunctions[val.name](node) || []);
+            });
+
+            _.each(_.where(nodeTypes, {type: 'block'}), function(val){
+                innerNodes = innerNodes.concat(t.parseFunctions[val.name](node) || []);
+            });
+
+            var blocks = node.$el.find('*').not(t.childScopeSelector).not(t.excludeNestedScopes(node.$el)).add(node.$el);
+
+            _.each(_.where(nodeTypes, {type: 'bind'}), function(val){
+                blocks.each(function (idx, elem) {
+                    t.parseFunctions[val.name](node, elem);
+                });
+            });
+            
+            return innerNodes;
+        },
+
+        calculatePosition: function (child, parent) {
+            //If the attributes are on the logic block element itself
+            if(child === parent){ return []; }
+
+            child = $(child);
+            parent = $(parent);
+
+            var parents = child.parentsUntil(parent);
+            if (child.closest(parent).length === 0) {
+                return undefined;
+            }
+            var indices = [child.parent().contents().index(child)];
+            parents.each(function (idx, elem) {
+                var $el = $(elem);
+                indices.unshift($el.parent().contents().index($el));
+            });
+
+            return indices;
+        },
+        parseBinding: function (modelRef, allowComplex) {
+            var binding = {},
+                matches,
+            //Corresponds to syntax like {{model.SomeProperty}}
+                basicPatt = /^\{\{([\w\.\[\]]+)\}\}$/i,
+            //Corresponds to syntax like {{Path='model.SomeProperty', Transform='model.SomeFunction'}}
+                advPatt = /^\{\{(?:\s*(Path|Filter|Pattern|HTML)\s*=\s*(?:'([^']*)'|"([^"]*)")\s*\,?)+\}\}$/ig,
+                advPatt2 = /(Path|Filter|Pattern|HTML)\s*=\s*('[^']*'|"[^"]*")\s*/ig
+
+            if (1 === arguments.length) {
+                allowComplex = true;
+            }
+            matches = modelRef.match(basicPatt);
+            if (matches !== null && matches.length > 1) {
+                binding.path = matches[1];
+            } else if (allowComplex) {
+                if (advPatt.exec(modelRef) !== null) {
+
+                    while (matches = advPatt2.exec(modelRef)) {
+                        binding[matches[1].toLowerCase()] = matches[2].substring(1, matches[2].length - 1);
+                    }
+
+                    //Ensure that at least the Path was parsed from the attributes, otherwise binding is not valid
+                    if (!binding.hasOwnProperty('path')) {
+                        binding = undefined;
+                    }
+                } else {
+                    binding = modelRef;
+                }
+            } else {
+                binding = modelRef;
+            }
+            return binding;
+        }
+    });
+
+    var cssTriggerNodeType = mvvm.cssTriggerNodeType = {
+        name: 'css-trigger',
+        type: 'tree', //types: tree, block, bind
+        parse: function(node){
+            var t = this;
+            var result = [];
+            //This selector specifies that it must either be the first child
+            //or preceded by another trigger - it's not perfect, you could place
+            //multiple selectors and not have any be the first child, and it would
+            //still pick up all but the first.
+            node.$el.find('[data-xt-event][data-xt-class]:first-child, [data-xt-event]+[data-xt-event][data-xt-class], [data-xt-event][data-xt-style]:first-child, [data-xt-event]+[data-xt-event][data-xt-style]')
+                    .not(t.excludeNestedScopes(node.$el))
+                    .each(function(idx, elem){
+                        var $el = $(elem);
+                        var options = {$el: $el};
+                        var styles = [];
+                        if($el.is('[data-xt-style]')){
+                            styles = $el.data('xt-style').split(';');
+                        }
+                        var cssClass = $el.data('xt-class');
+
+                        options.event = $el.data('xt-event');
+                        options.type = cssTriggerNodeType;
+                        options.position = t.calculatePosition($(elem).parent(), node.$el);
+
+                        if(styles !== undefined && styles.length > 0)
+                        {
+                            options.styles = {};
+                            _.each(styles, function (val) {
+                                var vals = val.split(':');
+                                if(2 !== vals.length){return;}
+                                options.styles[vals[0].trim()] = vals[1].trim(); 
+                            });
+                        }
+                        if(cssClass !== undefined)
+                        { options.cssClass = cssClass; }
+                        result.push(new templateNode(options));
+                    });
+            node.childNodes = node.childNodes.concat(result);
+            return [];
+        },
+        createInstance: function(node, $el, context){
+            var options = {
+                event: node.event,
+                el: resolveElement($el, node.position),
+                context: context
+            };
+            if(_.has(node, 'styles'))
+            { options.styles = node.styles; }
+            if(_.has(node, 'cssClass'))
+            { options.cssClass = node.cssClass; }
+
+            return new mvvm.StyleTrigger(options);      
+        }
+    };
+    mvvm.NodeTypes.push(cssTriggerNodeType);
+
+    var actionTriggerNodeType = mvvm.actionTriggerNodeType = {
+        name: 'action-trigger',
+        type: 'tree',
+        parse: function(node){
+            var t = this;
+            var result = [];
+            node.$el.find('[data-xt-event][data-xt-action]:first-child, [data-xt-event]+[data-xt-event][data-xt-action]')
+                    .not(t.excludeNestedScopes(node.$el))
+                    .each(function(idx, elem){
+                        var $el = $(elem);
+                        var options = {$el: $el};
+                        var data = $el.data('xt-data');
+
+                        options.event = $el.data('xt-event');
+                        options.action = t.parseBinding($el.data('xt-action'), false);
+                        options.type = actionTriggerNodeType;
+                        options.position = t.calculatePosition($(elem).parent(), node.$el);
+
+                        if(data !== undefined)
+                        { options.data = t.parseBinding(data, false); }
+
+                        result.push(new templateNode(options));
+                        //Removing the trigger HTML node from the DOM tree
+                        $el.remove();
+                    });
+            node.childNodes = node.childNodes.concat(result);
+            return [];
+        },
+        createInstance: function(node, $el, context){
+            var options = {
+                event: node.event,
+                el: resolveElement($el, node.position),
+                context: context,
+                action: node.action
+            };
+            if(_.has(node, 'data'))
+            { options.data = node.data; }
+
+            return new mvvm.ActionTrigger(options);  
+        }
+    };
+    mvvm.NodeTypes.push(actionTriggerNodeType);
+
+    var foreachNodeType = mvvm.foreachNodeType = {
+        name: 'foreach',
+        type: 'block',
+        selector: '[data-xt-foreach]',
+        parse: function(node){
+            var t = this;
+            var result = [];
+            //Select all the foreach elements that aren't nested within another block
+            var blocks = node.$el.find('[data-xt-foreach]').not(t.excludeNestedScopes(node.$el));
+            blocks.each(function (idx, elem) {
+                var $el = $(elem);
+                var options = {
+                    $el: $(elem),
+                    type: foreachNodeType,
+                    position: t.calculatePosition($el, node.$el),
+                    expression: t.parseBinding($el.data('xt-foreach')),
+                    iterator: $el.data('xt-iterator'),
+                    indexer: $el.data('xt-index')
+                };
+                result.push(new templateNode(options));
+            });
+            node.childNodes = node.childNodes.concat(result);
+            return result;
+        },
+
+        createInstance: function(node, $el, context){
+            var t=this;
+            var replace = resolveElement($el, node.position);
+            var item = new ForeachBlockInst({
+                block: node,
+                context: context,
+                el: replace
+            });
+            item.render();
+            return item;
+        }
+    };
+
+    mvvm.NodeTypes.push(foreachNodeType);
+
+    var ifNodeType = mvvm.ifNodeType = {
+        name: 'if-else',
+        type: 'block',
+        selector: '[data-xt-if],[data-xt-elseif],[data-xt-else]',
+        parse: function(node){
+            var t = this;
+            var result = [];
+            var blocks = node.$el.find('[data-xt-if]').not(t.excludeNestedScopes(node.$el));
+            blocks.each(function (idx, elem) {
+                var $el = $(elem);
+
+                var block = new templateNode({
+                    el: elem,
+                    type: ifNodeType,
+                    position: t.calculatePosition($el, node.$el),
+                    branches: [],
+                    defaultBranch: null
+                });
+
+                var curr = $el;
+
+                do {
+                    var cond = curr.is('[data-xt-if]')?curr.data('xt-if'):curr.data('xt-elseif');
+                    var bBlock = new templateNode({
+                        el: curr,
+                        type: ifNodeType,
+                        subType: 'branch',
+                        expression: t.parseBinding(cond)
+                    });
+                    if (curr.is('[data-xt-onrender]')) {
+                        bBlock.onrender = t.parseBinding(curr.data('xt-onrender'));
+                    }
+                    block.branches.push(bBlock);
+                    result.push(bBlock);
+                    curr = curr.next();
+                }while (curr.is('[data-xt-elseif]'));
+
+                if (curr.is('[data-xt-else]')) {
+                    block.defaultBranch = new templateNode({
+                        el: curr,
+                        type: ifNodeType,
+                        subType: 'else'
+                    });
+                    result.push(block.defaultBranch);
+                    if (curr.is('[data-xt-onrender]')) {
+                        block.defaultBranch.onrender = t.parseBinding(curr.data('xt-onrender'));
+                    }
+                }
+
+                node.childNodes.push(block);
+            });
+
+            return result;
+        },
+        createInstance: function(node, $el, context){
+            var replace = resolveElement($el, node.position);
+            var item = new IfBlockInst({
+                block: node,
+                context: context,
+                el: replace
+            });
+            item.render();
+            return item;
+        }
+    };
+
+    mvvm.NodeTypes.push(ifNodeType);
+
+
+    var partialNodeType = mvvm.partialNodeType = {
+        name: 'partial',
+        type: 'block',
+        selector: '[data-xt-partial]',
+        parse: function(node){
+            var t = this;
+            var blocks = node.$el.find('[data-xt-partial]').not(t.excludeNestedScopes(node.$el));
+            blocks.each(function (idx, elem) {
+                var $el = $(elem);
+                var model = $el.data('xt-model');
+                if(model){ model = t.parseBinding(model); }
+                var partial = $el.data('xt-partial');
+                if(undefined === model){
+                    var bind = t.parseBinding(partial);
+                    if(_.isObject(bind)){
+                        model = bind;
+                        partial = undefined;
+                    }
+                }
+
+                node.childNodes.push(new templateNode({
+                    $el: $el,
+                    type: partialNodeType,
+                    position: t.calculatePosition($el, node.$el),
+                    template: partial,
+                    model: model
+                }));
+            });   
+        },
+        createInstance: function(node, $el, context){
+            var replace = resolveElement($el, node.position);
+            var item = new ChildTemplateBlockInst({
+                block: node,
+                context: context,
+                el: replace
+            });
+            item.render();
+            return item;
+        }
+    };
+
+    mvvm.NodeTypes.push(partialNodeType);
+
+    var attributeBindingNodeType = mvvm.attributeBindingNodeType = {
+        name: 'attribute-binding',
+        type: 'bind',
+        parse: function(node, elem){
+            var $el = $(elem);
+            var t = this;
+
+            //Handle and attribute bindings
+            _.each(elem.attributes, function (attr) {
+                var name = attr.name;
+                //ignore attribute bindings for xintricity attributes, element ids and elements types
+                //as these are not allowed. 
+                if ((name.substr(0, 8) === 'data-xt-' && 'data-xt-src' !== name)
+                        // || name === 'id'
+                        || name === 'type') { return; }
+
+                var val = attr.value;
+                val = t.parseBinding(val);
+                if (_.isObject(val)) {
+                    node.childNodes.push(new templateNode({
+                        expression: val,
+                        type: attributeBindingNodeType,
+                        position: t.calculatePosition($el, node.$el),
+                        attr: name
+                    }));
+                }
+            });        
+        },
+        createInstance: function(node, $el, context){
+            var target = resolveElement($el, node.position);
+            var item = new mvvm.AttributeBinding({
+                model: context,
+                el: target,
+                expression: node.expression,
+                attr: node.attr
+            });
+            return item;
+        }
+    };
+
+    mvvm.NodeTypes.push(attributeBindingNodeType);
+
+    var cssBindingNodeType = mvvm.cssBindingNodeType = {
+        name: 'css-binding',
+        type: 'bind',
+        parse: function(node, elem){
+            var $el = $(elem);
+            var t = this;
+
+            var prefix = 'data-xt-class-';
+
+            var attrs = _.filter(elem.attributes, function (a) { return _.startsWith(a.name, prefix); });
+            //Handle and attribute bindings
+            _.each(attrs, function (attr) {
+                var name = attr.name;
+
+                var val = attr.value;
+                val = t.parseBinding(val);
+                if (_.isObject(val)) {
+                    node.childNodes.push(new templateNode({
+                        expression: val,
+                        type: cssBindingNodeType,
+                        position: t.calculatePosition($el, node.$el),
+                        cssClass: name.substr(prefix.length)
+                    }));
+                }
+            });        
+        },
+        createInstance: function(node, $el, context){
+            var target = resolveElement($el, node.position);
+            var item = new mvvm.CssClassBinding({
+                model: context,
+                el: target,
+                expression: node.expression,
+                cssClass: node.cssClass
+            });
+            return item;
+        }
+    };
+
+    mvvm.NodeTypes.push(cssBindingNodeType);
+
+    var textBindingNodeType = mvvm.textBindingNodeType = {
+        name: 'text-binding',
+        type: 'bind',
+        textBindingPattern: /\{\{([a-zA-Z][\w\._]*|([a-zA-z]\w*\s*=\s*('[^']*'|"[^"]*"),?\s*)+)\}\}/g,
+        parse: function(node, elem){
+            var t = this;
+            var $el = $(elem);
+
+            var contents = $el.contents();
+            _.each(contents.filter(function () { return this.nodeType == 3; }), function (txtnode) {
+                var binding = textBindingNodeType.createBinding.call(t, txtnode, node.$el, txtnode.nodeValue);
+                if(binding !== null){
+                    node.childNodes.push(binding);
+                }
+//                var matches = [];
+//                var match = null;
+//                while (match = textBindingNodeType.textBindingPattern.exec(txtnode.nodeValue)) { matches.push(match[0]); }
+//
+//                if (matches != null && matches.length > 0) {
+//                    node.childNodes.push(textBindingNodeType.createBinding.call(t, txtnode, node.$el, txtnode.nodeValue));
+//                    
+//                    var patterns = _.uniq(matches);
+//                    matches = _.map(patterns, function (val) { return t.parseBinding(val); });
+//                    var tblock = txtnode.nodeValue;
+//                    tblock = tblock.replace(/\{/, '&#123;').replace(/\}/, '&#125;');
+//                    var pattern = txtnode.nodeValue.replace(textBindingNodeType.textBindingPattern, function (val) {
+//                        return '{' + _.indexOf(patterns, val) + '}';
+//                    });
+//
+//                    node.childNodes.push(new templateNode({
+//                        type: textBindingNodeType,
+//                        paths: matches,
+//                        pattern: pattern,
+//                        position: t.calculatePosition($(txtnode), node.$el)
+//                    }));
+//                }
+            });
+            _.each($el.get(0).attributes, function (attr) {
+                //Ignore attribute value bindings
+                if(_.isObject(t.parseBinding(attr.value))){ return; }
+                
+                var binding = textBindingNodeType.createBinding.call(t, $el, node.$el, attr.value, attr.name);
+                if (binding !== null) {
+                    node.childNodes.push(binding);
+                }
+            });
+        },
+        createBinding: function(el, parent, text, attrName){
+            var t = this;
+            var $el = $(el);
+            
+            var matches = [];
+            var match = null;
+            while (match = textBindingNodeType.textBindingPattern.exec(text)) { matches.push(match[0]); }
+            if (matches != null && matches.length > 0) {
+                var patterns = _.uniq(matches);
+                matches = _.map(patterns, function (val) { return t.parseBinding(val); });
+                var tblock = text;
+                tblock = tblock.replace(/\{/, '&#123;').replace(/\}/, '&#125;');
+                var pattern = text.replace(textBindingNodeType.textBindingPattern, function (val) {
+                    return '{' + _.indexOf(patterns, val) + '}';
+                });
+
+                var args = {
+                    type: textBindingNodeType,
+                    paths: matches,
+                    pattern: pattern,
+                    position: t.calculatePosition($el, parent)
+                };
+                if(undefined !== attrName){
+                    args['attribute'] = attrName;
+                };
+
+                return new templateNode(args);
+            }else{
+                return null;
+            }
+        },
+        createInstance: function(node, $el, context){
+            var target = resolveElement($el, node.position);
+            var args = {
+                model: context,
+                el: target,
+                paths: node.paths,
+                pattern: node.pattern
+            };
+            if(_.has(node, 'attribute')){ args['attribute'] = node.attribute; }
+            var item = new mvvm.TextNodeBinding(args);
+            return item;
+        }
+    };
+
+    mvvm.NodeTypes.push(textBindingNodeType);
+
+    var selectBindingNodeType = mvvm.selectBindingNodeType = {
+        name: 'select-binding',
+        type: 'bind',
+        parse: function(node, elem){
+            var t=this;
+            var $el = $(elem);
+            if(!$el.is('[data-xt-options]')){ return; }
+            var val = $el.data('xt-options');
+            var options = {
+                el: elem,
+                type: selectBindingNodeType,
+                path: val.substr(2, val.length - 4),
+                position: t.calculatePosition($el, node.$el)
+            };
+
+            var textField = $el.data('xt-text-field');
+            var valueField = $el.data('xt-value-field');
+            if (undefined !== textField && null !== textField) {
+                options.textField = textField;
+            }
+            if (undefined !== valueField && null !== valueField) {
+                options.valueField = valueField;
+            }
+            var binding = new templateNode(options);
+            node.childNodes.push(binding);
+        },
+        createInstance: function(node, $el, context){
+            var target = resolveElement($el, node.position);
+            var item = new mvvm.SelectBinding({
+                model: context,
+                el: target,
+                path: node.path,
+                textField: node.textField,
+                valueField: node.valueField
+            });
+            return item;
+        }
+    };
+
+    mvvm.NodeTypes.push(selectBindingNodeType);
+
     mvvm.Binding = function () { };
     mvvm.Binding.extend = $x.extendClass;
 
@@ -239,7 +872,10 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
                 }
             });
             var text = $x.format.apply(this, vals).replace(/&#123;/, '{').replace(/&#125;/, '}');
-            if(html){
+            
+            if(_.has(t.options, 'attribute')){
+                $(t.options.el).attr(t.options.attribute, t.escapeEntities(text));
+            }else if(html){
                 var node = document.createElement('div');
                 var $el = $(t.options.el);
                 var parent = $el.parent().get(0);
@@ -289,6 +925,9 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
             _.each(paths, function (p) {
                 t.unbindModelExpression(t.options.model, p, t._callbacks[p]);
             });
+            t._modelPaths = {};
+            t._callbacks = {};
+            
             delete t._callbacks;
             delete t._modelPaths;
         }
@@ -714,378 +1353,6 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
     });
     $x.extend(mvvm.ActionTrigger.prototype, mvvm.ModelNavMixins);
 
-    var tmplBlock = function (options) {
-        var t = this;
-        t.options = $x.extend({}, options);
-        if (arguments.length > 0) {
-            _.defaults(t.options, t.defaults);
-        }
-
-        t._bindings = [];
-        t._triggers = [];
-        t._logicBlocks = [];
-        t._nestedTemplates = [];
-
-        t.excludeNestedScopes = function (idx) { return $(this).parentsUntil(t.$el, tmplBlock.childScopeSelector).length > 0; };
-        if (t.options.el) {
-            if (t.options.el instanceof $) {
-                t.options.el = t.options.el.get(0);
-            }
-            t.el = t.options.el;
-            t.$el = $(t.el);
-        }
-
-        t.initialize();
-
-        if (t.options.el
-            && _.isString(t.options.type)) { t.parse(); }
-    };
-
-    tmplBlock.childScopeSelector = '[data-xt-foreach],[data-xt-if],[data-xt-elseif],[data-xt-else]';
-    tmplBlock.attributeBindingPattern = /^\{\{[a-zA-Z][\w\._]*\}\}$/;
-    tmplBlock.textBindingPattern = /\{\{([a-zA-Z][\w\._]*|([a-zA-z]\w*\s*=\s*('[^']*'|"[^"]*"),?\s*)+)\}\}/g;
-    tmplBlock.extend = $x.extendClass;
-    $x.extend(tmplBlock.prototype, {
-        defaults: {
-            el: null,
-            type: 'template'
-        },
-        initialize: function () { },
-        parse: function () {
-            var t = this;
-
-            //Handle triggers first so that we can remove them from the DOM
-            //since they will never be rendered.  Otherwise, they must be
-            //accounted for in calculating the position
-            t.parseTriggers();
-
-            t.parseForeaches();
-            t.parseIfs();
-            t.parseTemplates();
-
-            t.parseSelectBindings();
-
-            var blocks = t.$el.find('*').not(tmplBlock.childScopeSelector).not(t.excludeNestedScopes).add(t.$el);
-
-            blocks.each(function (idx, elem) {
-                t.parseAttributeBindings(elem);
-                t.parseCssClassBindings(elem);
-                t.parseTextBindings(elem);
-
-            });
-        },
-
-        parseTriggers: function () {
-            var t = this;
-            var blocks = t.$el.find('[data-xt-event]').not(t.excludeNestedScopes);
-            blocks.each(function (idx, elem) {
-                var $el = $(elem);
-                var parent = $el.parent();
-                var options = {
-                    el: parent,
-                    position: t.calculatePosition(parent, t.$el)
-                };
-
-                var action = $el.data('xt-action');
-                var value = $el.data('xt-data');
-                var styles = $el.data('xt-style');
-                var cssClass = $el.data('xt-class');
-                if (action) {
-                    options.type = mvvm.ActionTrigger;
-                    options.action = t.parseBinding(action, false);
-                    if (undefined !== value) {
-                        options.data = t.parseBinding(value, false);
-                    }
-                    options.event = $el.data('xt-event');
-                } else if (styles != null || cssClass != null) {
-                    options.type = mvvm.StyleTrigger;
-                    options.styles = {};
-                    if (styles != null) {
-                        styles = $el.data('xt-style').split(';');
-                        _.each(options.styles, function (val) { var vals = val.split(':'); option.styles[vals[0].trim()] = vals[1].trim(); });
-                    }
-                    if (cssClass != null) {
-                        options.cssClass = cssClass;
-                    }
-                }
-
-                $el.remove();
-                t._triggers.push(new tmplBlock(options));
-            });
-        },
-
-        parseForeaches: function () {
-            var t = this;
-            //Select all the foreach elements that aren't nested within another block
-            var blocks = t.$el.find('[data-xt-foreach]').not(t.excludeNestedScopes);
-            blocks.each(function (idx, elem) {
-                var $el = $(elem);
-                var bBlock = new tmplBlock({
-                    el: elem,
-                    type: 'foreach',
-                    position: t.calculatePosition($el, t.$el),
-                    expression: t.parseBinding($el.data('xt-foreach')),
-                    iterator: $el.data('xt-iterator'),
-                    indexer: $el.data('xt-index')
-                });
-                if ($el.is('[data-xt-onrender]')) {
-                    bBlock.options.onrender = t.parseBinding($el.data('xt-onrender'));
-                }
-                t._logicBlocks.push(bBlock);
-            });
-        },
-
-        parseIfs: function () {
-            var t = this;
-            var blocks = t.$el.find('[data-xt-if]').not(t.excludeNestedScopes);
-            blocks.each(function (idx, elem) {
-                var $el = $(elem);
-                var curr = $el.next();
-
-                var block = new tmplBlock({
-                    el: elem,
-                    type: 'if',
-                    position: t.calculatePosition($el, t.$el),
-                    branches: [],
-                    defaultBranch: null
-                });
-
-                var bBlock = new tmplBlock({
-                    el: $el,
-                    type: 'branch',
-                    expression: t.parseBinding($el.data('xt-if'))
-                });
-                if ($el.is('[data-xt-onrender]')) {
-                    bBlock.options.onrender = t.parseBinding($el.data('xt-onrender'));
-                }
-
-                block.options.branches.push(bBlock);
-
-
-                while (curr.is('[data-xt-elseif]')) {
-                    bBlock = new tmplBlock({
-                        el: curr,
-                        type: 'branch',
-                        expression: t.parseBinding($el.data('xt-elseif'))
-                    });
-                    if (curr.is('[data-xt-onrender]')) {
-                        bBlock.options.onrender = t.parseBinding(curr.data('xt-onrender'));
-                    }
-                    block.options.branches.push(bBlock);
-                    curr = curr.next();
-                }
-                if (curr.is('[data-xt-else]')) {
-                    block.options.defaultBranch = new tmplBlock({
-                        el: curr,
-                        type: 'else'
-                    });
-
-                    if (curr.is('[data-xt-onrender]')) {
-                        block.options.defaultBranch.options.onrender = t.parseBinding(curr.data('xt-onrender'));
-                    }
-                }
-
-                t._logicBlocks.push(block);
-            });
-        },
-
-        parseTemplates: function () {
-            var t = this;
-            var blocks = t.$el.find('[data-xt-partial]').not(t.excludeNestedScopes);
-            blocks.each(function (idx, elem) {
-                var $el = $(elem);
-                var model = $el.data('xt-model');
-                if(model){ model = t.parseBinding(model); }
-                var partial = $el.data('xt-partial');
-                if(undefined === model){
-                    var bind = t.parseBinding(partial);
-                    if(_.isObject(bind)){
-                        model = bind;
-                        partial = undefined;
-                    }
-                    
-                }
-                t._nestedTemplates.push(new tmplBlock({
-                    el: elem,
-                    type: 'templateref',
-                    position: t.calculatePosition($el, t.$el),
-                    template: partial,
-                    model: model
-                }));
-            });
-        },
-
-        parseAttributeBindings: function (elem) {
-            var $el = $(elem);
-            var t = this;
-
-            //Handle and attribute bindings
-            _.each(elem.attributes, function (attr) {
-                var name = attr.name;
-                //ignore attribute bindings for xintricity attributes, element ids and elements types
-                //as these are not allowed. 
-                if ((name.substr(0, 8) === 'data-xt-' && 'data-xt-src' !== name)
-                        // || name === 'id'
-                        || name === 'type') { return; }
-
-                var val = attr.value;
-                val = t.parseBinding(val);
-                if (_.isObject(val)) {
-                    t._bindings.push({
-                        expression: val,
-                        type: mvvm.AttributeBinding,
-                        position: t.calculatePosition($el, t.$el),
-                        attr: name
-                    });
-                }
-            });
-        },
-
-        parseCssClassBindings: function (elem) {
-            var $el = $(elem);
-            var t = this;
-
-            var prefix = 'data-xt-class-';
-
-            var attrs = _.filter(elem.attributes, function (a) { return _.startsWith(a.name, prefix); });
-            //Handle and attribute bindings
-            _.each(attrs, function (attr) {
-                var name = attr.name;
-
-                var val = attr.value;
-                val = t.parseBinding(val);
-                if (_.isObject(val)) {
-                    t._bindings.push({
-                        expression: val,
-                        type: mvvm.CssClassBinding,
-                        position: t.calculatePosition($el, t.$el),
-                        cssClass: name.substr(prefix.length)
-                    });
-                }
-            });
-        },
-
-        parseTextBindings: function (elem) {
-            var t = this;
-            var $el = $(elem);
-
-            var contents = $el.contents();
-            _.each(contents.filter(function () { return this.nodeType == 3; }), function (node) {
-                var matches = [];
-                var match = null;
-                while (match = tmplBlock.textBindingPattern.exec(node.nodeValue)) { matches.push(match[0]); }
-
-                if (matches != null && matches.length > 0) {
-                    var patterns = _.uniq(matches);
-                    matches = _.map(patterns, function (val) { return t.parseBinding(val); });
-                    var tblock = node.nodeValue;
-                    tblock = tblock.replace(/\{/, '&#123;').replace(/\}/, '&#125;');
-                    var pattern = node.nodeValue.replace(tmplBlock.textBindingPattern, function (val) {
-                        return '{' + _.indexOf(patterns, val) + '}';
-                    });
-
-                    t._bindings.push({
-                        type: mvvm.TextNodeBinding,
-                        paths: matches,
-                        pattern: pattern,
-                        position: t.calculatePosition($(node), t.$el)
-                    });
-                }
-            });
-        },
-
-        parseSelectBindings: function (elem) {
-            var t = this, val;
-            var blocks = t.$el.find('select[data-xt-options]').not(t.excludeNestedScopes);
-            blocks.each(function (idx, elem) {
-                var $el = $(elem);
-                val = $el.data('xt-options');
-                var binding = {
-                    el: elem,
-                    type: mvvm.SelectBinding,
-                    path: val.substr(2, val.length - 4),
-                    position: t.calculatePosition($el, t.$el)
-                };
-
-                var textField = $el.data('xt-text-field');
-                var valueField = $el.data('xt-value-field');
-                if (undefined !== textField && null !== textField) {
-                    binding.textField = textField;
-                }
-                if (undefined !== valueField && null !== valueField) {
-                    binding.valueField = valueField;
-                }
-
-                t._bindings.push(binding);
-            });
-        },
-
-        parseBinding: function (modelRef, allowComplex) {
-            var binding = {},
-                matches,
-            //Corresponds to syntax like {{model.SomeProperty}}
-                basicPatt = /^\{\{([\w\.\[\]]+)\}\}$/i,
-            //Corresponds to syntax like {{Path='model.SomeProperty', Transform='model.SomeFunction'}}
-                advPatt = /^\{\{(?:\s*(Path|Filter|Pattern|HTML)\s*=\s*(?:'([^']*)'|"([^"]*)")\s*\,?)+\}\}$/ig,
-                advPatt2 = /(Path|Filter|Pattern|HTML)\s*=\s*('[^']*'|"[^"]*")\s*/ig
-
-            if (1 === arguments.length) {
-                allowComplex = true;
-            }
-            matches = modelRef.match(basicPatt);
-            if (matches !== null && matches.length > 1) {
-                binding.path = matches[1];
-            } else if (allowComplex) {
-                if (advPatt.exec(modelRef) !== null) {
-
-                    while (matches = advPatt2.exec(modelRef)) {
-                        binding[matches[1].toLowerCase()] = matches[2].substring(1, matches[2].length - 1);
-                    }
-
-                    //Ensure that at least the Path was parsed from the attributes, otherwise binding is not valid
-                    if (!binding.hasOwnProperty('path')) {
-                        binding = undefined;
-                    }
-                } else {
-                    binding = modelRef;
-                }
-            } else {
-                binding = modelRef;
-            }
-            return binding;
-        },
-
-        createInstance: function (context) {
-            var t = this, inst;
-            if (t.options.type !== 'template') {
-                throw 'Invalid object type';
-            }
-            return new TemplateBlockInst({
-                block: t
-            });
-        },
-
-        calculatePosition: function (child, parent) {
-            //If the attributes are on the logic block element itself
-            if(child === parent){ return []; }
-            
-            child = $(child);
-            parent = $(parent);
-
-            var parents = child.parentsUntil(parent);
-            if (child.closest(parent).length === 0) {
-                return undefined;
-            }
-            var indices = [child.parent().contents().index(child)];
-            parents.each(function (idx, elem) {
-                var $el = $(elem);
-                indices.unshift($el.parent().contents().index($el));
-            });
-
-            return indices;
-        }
-    });
-
     var createPlaceholderNode = function () {
         return document.createTextNode('');
     };
@@ -1113,10 +1380,7 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
         },
         initialize: function () {
             var t = this;
-            t._bindings = [];
-            t._triggers = [];
-            t._logicBlocks = [];
-            t._nestedTemplates = [];
+            t.childInstances = [];
             _.bindAll(t, 'render');
         },
         render: function () { },
@@ -1125,62 +1389,12 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
             var t = this, block = block ? block : this.options.block;
 
             var $el = $(el);
-
-            _.each(block._triggers, function (val, idx) {
-                var trigType = val.options.type;
-                var options = $x.extend({}, val.options);
-                options.el = t.resolveElement($el, val.options.position);
-                options.context = context;
-                delete options.type;
-                delete options.position;
-                t._triggers.push(new trigType(options));
-            });
-
-            _.each(block._logicBlocks, function (val, idx) {
-                var replace = t.resolveElement($el, val.options.position);
-                var item;
-                switch (val.options.type) {
-                    case 'if':
-                        item = new IfBlockInst({
-                            block: val,
-                            context: context,
-                            el: replace
-                        });
-                        break;
-                    case 'foreach':
-                        item = new ForeachBlockInst({
-                            block: val,
-                            context: context,
-                            el: replace
-                        });
-                        break;
-                    default:
-                        throw 'Unknown logic block';
-                }
-                t._logicBlocks.push(item);
-                item.render();
-            });
-
-            _.each(block._bindings, function (val, idx) {
-                var target = t.resolveElement($el, val.position);
-                var options = $x.extend({}, val, {
-                    model: context,
-                    el: target
-                });
-                delete options.position;
-                var item = new val.type(options);
-                t._bindings.push(item);
-            });
-
-            _.each(block._nestedTemplates, function (val, idx) {
-                var target = t.resolveElement($el, val.options.position);
-                var item = new ChildTemplateBlockInst({
-                    block: val,
-                    context: context,
-                    el: target
-                });
-                t._nestedTemplates.push(item);
-                item.render();
+            _.each(block.childNodes, function(val, idx){
+               var inst = val.createInstance($el, context);
+               t.childInstances.push(inst);
+               if(inst instanceof tmplBlockInst){
+                 inst.render();  
+               }
             });
         },
 
@@ -1200,14 +1414,12 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
         clear: function () {
             var t = this;
-            _.each(t._bindings, function (item) { item.dispose(); });
-            t._bindings = [];
-            _.each(t._triggers, function (item) { item.dispose(); });
-            t._triggers = [];
-            _.each(t._logicBlocks, function (item) { item.dispose(); });
-            t._logicBlocks = [];
-            _.each(t._nestedTemplates, function (item) { item.dispose(); });
-            t._nestedTemplates = [];
+            _.each(t.childInstances, function(item){
+               if(item.dispose){
+                   item.dispose();
+               }
+            });
+            t.childInstances = [];
             t.$el.empty();
         },
         dispose: function () {
@@ -1244,7 +1456,7 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
         render: function () {
             var t = this;
             var block = t.options.block;
-            t.setEl($(block.el).clone());
+            t.setEl(block.$el.clone());
             var context = t.createContext(t.options.context);
             //var context = t.createContext({ model: t.options.context });
             t.renderInternal(block, t.$el, context);
@@ -1257,7 +1469,7 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
             var t = this;
             tmplBlockInst.prototype.initialize.apply(this);
             _.bindAll(t, 'modelChanged', 'render');
-            var mod = t.options.block.options.model;
+            var mod = t.options.block.model;
             t.bindModelExpression(t.options.context, mod, t.modelChanged);
             t.model = t.resolveModelExpressionValue(t.options.context, mod);
         },
@@ -1273,7 +1485,9 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
             var block = t.options.block;
             t.clear();
             
-            var template = block.options.template;
+            var template = block.template;
+            //If the model is a ViewModel, we should call it's render method
+            //Otherwise, render the partial template specified
             if((_.isUndefined(template) || _.isNull(template)) && (t.model instanceof mvvm.ViewModel)){
                 var rplc = t.model.render();
                 t.$el.replaceWith(rplc);
@@ -1293,7 +1507,7 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
             var t = this;
             var block = t.options.block;
             t.clear();
-            var template = block.options.template;
+            var template = block.template;
             if((_.isUndefined(template) || _.isNull(template)) && (t.model instanceof mvvm.ViewModel)){
                 t.model.dispose();
             }            
@@ -1303,7 +1517,7 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
     var IfBlockInst = tmplBlockInst.extend({
         initialize: function () {
             var t = this,
-                block = t.options.block;
+            block = t.options.block;
             t.current = null;
 
             //Expand the t.$el element to include all the else-if and else conditions
@@ -1319,25 +1533,25 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
             tmplBlockInst.prototype.initialize.apply(t);
             _.bindAll(t, 'render');
             this.branches = [];
-            _.each(block.options.branches, function (val, idx) {
+            _.each(block.branches, function (val, idx) {
                 var branch = {};
                 branch.callback = _.bind(t.modelChanged, t, idx);
-                branch.value = t.resolveModelExpressionValue(t.options.context, val.options.expression);
+                branch.value = t.resolveModelExpressionValue(t.options.context, val.expression);
 
                 if (t.current === null && branch.value) { t.current = idx; };
-                t.bindModelExpression(t.options.context, val.options.expression, branch.callback);
+                t.bindModelExpression(t.options.context, val.expression, branch.callback);
                 t.branches.push(branch);
             });
         },
         modelChanged: function (idx) {
             var t = this;
             var block = t.options.block;
-            var bbranch = block.options.branches[idx];
+            var bbranch = block.branches[idx];
             var branch = t.branches[idx];
             var curr = branch.value;
 
             //Changing val to bbranch, must have changed it during some refactoring
-            branch.value = t.resolveModelExpressionValue(t.options.context, bbranch.options.expression);
+            branch.value = t.resolveModelExpressionValue(t.options.context, bbranch.expression);
             if ((t.current === null || idx <= t.current) && branch.value != curr) {
                 var next = null;
                 for (var i = 0; i < t.branches.length; i++) {
@@ -1346,7 +1560,7 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
                         break;
                     }
                 }
-                if (next === null && block.options.defaultBranch !== null) {
+                if (next === null && block.defaultBranch !== null) {
                     next = t.branches.length;
                 }
                 t.current = next;
@@ -1358,13 +1572,13 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
         },
         render: function () {
             var t = this;
-            var opts = t.options.block.options;
-            var block = (t.current !== null && t.current < t.branches.length) ? opts.branches[t.current] : opts.defaultBranch;
+            var node = t.options.block;
+            var block = (t.current !== null && t.current < t.branches.length) ? node.branches[t.current] : node.defaultBranch;
             t.clear();
 
             var $next = null;
             if (block) {
-                var $next = $(block.options.el).clone();
+                var $next = block.$el.clone();
                 //Clean up the HTML
                 $next.removeAttr('data-xt-if');
                 t.renderInternal(block, $next, t.options.context);
@@ -1376,7 +1590,7 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
             for (var i = 0; i < t.branches.length - 1; i++) {
                 $next = $next.add(createPlaceholderNode());
             }
-            if (opts.defaultBranch !== null) {
+            if (node.defaultBranch !== null) {
                 $next = $next.add(createPlaceholderNode());
             }
 
@@ -1388,8 +1602,8 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
             t.$el.remove();
             t.setEl($next);
 
-            if (block && _.has(block.options, 'onrender')) {
-                var action = t.resolveModelExpression(t.options.context, block.options.onrender);
+            if (block && _.has(block, 'onrender')) {
+                var action = t.resolveModelExpression(t.options.context, block.onrender);
                 if (_.isArray(action) && action.length > 0) {
                     action = _.last(action);
                     action($next);
@@ -1402,7 +1616,7 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
         initialize: function () {
             var t = this;
             tmplBlockInst.prototype.initialize.apply(this);
-            var mod = t.options.block.options.expression;
+            var mod = t.options.block.expression;
             _.bindAll(t, 'render', 'modelChanged');
 
             t.bindModelExpression(t.options.context, mod, t.modelChanged);
@@ -1413,7 +1627,7 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
             //added or removed and no indexer is specified (another feature to
             //be implemented), on render/remove the changed element
             var t = this;
-            var mod = t.options.block.options.expression;
+            var mod = t.options.block.expression;
 
             var nextVal = t.resolveModelExpressionValue(t.options.context, mod);
             var update = (t.value != nextVal) || event === 'add' || event === 'remove';
@@ -1430,8 +1644,8 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
             var block = t.options.block;
             t.clear();
             if (t.value && t.value.length > 0) {
-                var iterName = block.options.iterator;
-                var indexerName = _.has(block.options, 'indexer')?block.options.indexer:undefined;
+                var iterName = block.iterator;
+                var indexerName = _.has(block, 'indexer')?block.indexer:undefined;
                 var innerElem = block.$el.clone().children();
 
                 //Clean up the HTML
@@ -1461,8 +1675,8 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
                 }
             }
 
-            if (_.has(block.options, 'onrender')) {
-                var action = t.resolveModelExpression(t.options.context, block.options.onrender);
+            if (_.has(block, 'onrender')) {
+                var action = t.resolveModelExpression(t.options.context, block.onrender);
                 if (_.isArray(action) && action.length > 0) {
                     action = _.last(action);
                     action($next);
@@ -1510,7 +1724,8 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
         // templates that don't have a single root element.  Will need to unwrap during
         // rendering.
         el = $('<div></div>').append(el);
-        var block = new tmplBlock({ el: el });
+        var parser = new mvvm.templateParser();
+        var block = parser.parse(el);//new tmplBlock({ el: el });
         if (arguments.length === 2 && arguments[1] === true) { return block; }
 
         var handleCommand = function (cmd, model, options) {

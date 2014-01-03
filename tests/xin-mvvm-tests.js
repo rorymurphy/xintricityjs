@@ -110,29 +110,29 @@ Let the tests begin
         equal($el.css('height'), '1234px', 'Event Trigger Style Fired!');
     });
 
-    test('Parse MVVM Template', function () {
-        var $el = $('#xin-mvvm-template-test');
-        var tmpl = mvvm.Template.compile($el.get(0), true);
-        equal(tmpl._nestedTemplates.length, 0, "No false positives");
-        //equal(tmpl._bindings.length, 0, "No false positives");
-
-        var sb = _.filter(tmpl._bindings, function(val) { return val.type === mvvm.SelectBinding; });
-        equal(sb.length, 1, 'Verifying select binding was parsed');
-
-        equal(tmpl._logicBlocks.length, 1, "Parse top level foreach");
-        var fe = tmpl._logicBlocks[0];
-        equal(fe.options.type, 'foreach', 'Ensuring outer foreach');
-        equal(fe.options.expression.path, 'model.Albums', 'Check outer foreach expression');
-        equal(fe.options.iterator, 'album', 'Check outer foreach iterator');
-
-        var ifb = _.find(fe._logicBlocks, function (val) { return val.options.type === 'if'; });
-        notEqual(ifb, null, "Inner if block not null");
-        equal(ifb.options.branches[0].options.expression.path, 'album.IsFavorite', 'Check if block expression');
-
-        var ife = _.find(fe._logicBlocks, function (val) { return val.options.type === 'foreach'; });
-        notEqual(ife, null, "Inner foreach block not null");
-        notEqual(tmpl, null);
-    });
+//    test('Parse MVVM Template', function () {
+//        var $el = $('#xin-mvvm-template-test');
+//        var tmpl = mvvm.Template.compile($el.get(0), true);
+//        equal(tmpl._nestedTemplates.length, 0, "No false positives");
+//        //equal(tmpl._bindings.length, 0, "No false positives");
+//
+//        var sb = _.filter(tmpl._bindings, function(val) { return val.type === mvvm.SelectBinding; });
+//        equal(sb.length, 1, 'Verifying select binding was parsed');
+//
+//        equal(tmpl._logicBlocks.length, 1, "Parse top level foreach");
+//        var fe = tmpl._logicBlocks[0];
+//        equal(fe.options.type, 'foreach', 'Ensuring outer foreach');
+//        equal(fe.options.expression.path, 'model.Albums', 'Check outer foreach expression');
+//        equal(fe.options.iterator, 'album', 'Check outer foreach iterator');
+//
+//        var ifb = _.find(fe._logicBlocks, function (val) { return val.options.type === 'if'; });
+//        notEqual(ifb, null, "Inner if block not null");
+//        equal(ifb.options.branches[0].options.expression.path, 'album.IsFavorite', 'Check if block expression');
+//
+//        var ife = _.find(fe._logicBlocks, function (val) { return val.options.type === 'foreach'; });
+//        notEqual(ife, null, "Inner foreach block not null");
+//        notEqual(tmpl, null);
+//    });
 
     test('Render MVVM Template Instance', function () {
         var $el = $('#xin-mvvm-template-test');
@@ -186,6 +186,7 @@ Let the tests begin
         var inst = $('<div></div>').append(tmpl(model)) ;
 
         equal(inst.find('.songs table tbody tr:first-child td').eq(2).text().trim() , "A Hard Day's Night", 'Verifying text binding');
+        equal(inst.find('ul li:first-child').data('name'), 'This is a-hard-days-night', 'Testing attribute text pattern binding.');
 
         equal(inst.find('select option').length, 2, 'Verifying select binding rendered options');
         var opt=inst.find('select option:first-child');
