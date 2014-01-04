@@ -491,7 +491,25 @@
        isEqualTo0: function(val){ return val === 0; },
        isEqualTo1: function(val){ return val === 1;},
        isGreaterThan0: function(val){ return val > 0; },
-       isLessThan0: function(val){ val < 0; }
+       isLessThan0: function(val){ val < 0; },
+       add1: function(val){ return val + 1; },
+       subtract1: function(val){ return val - 1; }
+    });
+    
+    mvvm.BindingExpression = function(args){
+        if(args){_.extend(this, args);}
+    };
+    _.extend(mvvm.BindingExpression.prototype, {
+        toString: function(){
+            var result = '{';
+            var keys = _.keys(this).sort();
+            result += '"' + keys[0] + '","' + this[keys[0]] + '"';
+            for(var i=1; i < keys.length; i++){
+               result += ',"' + keys[i] + '","' + this[keys[i]] + '"';
+            }
+            result += '}';
+            return result;
+        }
     });
     
     mvvm.ModelNavMixins = {

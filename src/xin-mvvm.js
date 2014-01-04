@@ -191,7 +191,11 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
             } else {
                 binding = modelRef;
             }
-            return binding;
+            if(_.isObject(binding)){
+                return new mvvm.BindingExpression(binding);
+            }else{
+                return binding;
+            }
         }
     });
 
@@ -538,34 +542,14 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
             var $el = $(elem);
 
             var contents = $el.contents();
+            //Parse bindings for text nodes contained by the current element
             _.each(contents.filter(function () { return this.nodeType == 3; }), function (txtnode) {
                 var binding = textBindingNodeType.createBinding.call(t, txtnode, node.$el, txtnode.nodeValue);
                 if(binding !== null){
                     node.childNodes.push(binding);
                 }
-//                var matches = [];
-//                var match = null;
-//                while (match = textBindingNodeType.textBindingPattern.exec(txtnode.nodeValue)) { matches.push(match[0]); }
-//
-//                if (matches != null && matches.length > 0) {
-//                    node.childNodes.push(textBindingNodeType.createBinding.call(t, txtnode, node.$el, txtnode.nodeValue));
-//                    
-//                    var patterns = _.uniq(matches);
-//                    matches = _.map(patterns, function (val) { return t.parseBinding(val); });
-//                    var tblock = txtnode.nodeValue;
-//                    tblock = tblock.replace(/\{/, '&#123;').replace(/\}/, '&#125;');
-//                    var pattern = txtnode.nodeValue.replace(textBindingNodeType.textBindingPattern, function (val) {
-//                        return '{' + _.indexOf(patterns, val) + '}';
-//                    });
-//
-//                    node.childNodes.push(new templateNode({
-//                        type: textBindingNodeType,
-//                        paths: matches,
-//                        pattern: pattern,
-//                        position: t.calculatePosition($(txtnode), node.$el)
-//                    }));
-//                }
             });
+            //Parse bindings for any properties that don't match attribute value binding syntax
             _.each($el.get(0).attributes, function (attr) {
                 //Ignore attribute value bindings
                 if(_.isObject(t.parseBinding(attr.value))){ return; }

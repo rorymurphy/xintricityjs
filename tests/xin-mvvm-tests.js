@@ -147,6 +147,7 @@ Let the tests begin
                 {
                     Title: "A Hard Day's Night",
                     Slug: 'a-hard-days-night',
+                    Artist: 'The Beatles',
                     IsFavorite: false,
                     Songs: [
                         {
@@ -186,7 +187,7 @@ Let the tests begin
         var inst = $('<div></div>').append(tmpl(model)) ;
 
         equal(inst.find('.songs table tbody tr:first-child td').eq(2).text().trim() , "A Hard Day's Night", 'Verifying text binding');
-        equal(inst.find('ul li:first-child').data('name'), 'This is a-hard-days-night', 'Testing attribute text pattern binding.');
+        equal(inst.find('ul li:first-child').data('name'), 'This is a-hard-days-night by The Beatles', 'Testing attribute text pattern binding.');
 
         equal(inst.find('select option').length, 2, 'Verifying select binding rendered options');
         var opt=inst.find('select option:first-child');
