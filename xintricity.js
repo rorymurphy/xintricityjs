@@ -2236,7 +2236,7 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
                 
                 fAttrs[name] = fVal;
             });
-            Backbone.Model.prototype.set.apply(this, [fAttrs, options]);
+            return Backbone.Model.prototype.set.apply(this, [fAttrs, options]);
 
         },
         _prepareValue: function(field, value) {
@@ -2674,7 +2674,7 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
             var href = $(this).attr('href');
             var protocol = this.protocol + '//';
 
-            if (href.substr(0, baseFull.length) === baseFull && $(this).attr('target') !== '_blank' && $(this).attr('rel') !== 'external') {
+            if (href && href.substr(0, baseFull.length) === baseFull && $(this).attr('target') !== '_blank' && $(this).attr('rel') !== 'external') {
               var tail = href.substr(baseFull.length);
               
               var isRouted = t.canRoute(tail);
@@ -3175,7 +3175,9 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
                 var name = attr.name;
                 //ignore attribute bindings for xintricity attributes, element ids and elements types
                 //as these are not allowed. 
-                if ((name.substr(0, 8) === 'data-xt-' && 'data-xt-src' !== name)
+                if ((name.substr(0, 8) === 'data-xt-'
+                        && 'data-xt-src' !== name
+                        && 'data-xt-value' !== name)
                         // || name === 'id'
                         || name === 'type') { return; }
 
@@ -3377,7 +3379,7 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
                 t.options.updateModel = false;
             }
             t.$el = $(t.options.el);
-            _.bindAll(this, 'value', 'setModelAttr', 'modelChanged', 'bindModel', 'unbindModel', 'bindEl', 'setElProp', 'elChanged', 'dispose');
+            _.bindAll(this, 'value', 'elementValue', 'setModelAttr', 'modelChanged', 'bindModel', 'unbindModel', 'bindEl', 'setElProp', 'elChanged', 'dispose');
             this.bindModel()
             this.bindEl();
             this.initialize();
@@ -3424,6 +3426,21 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
             return this._applyBindExpression(this.options.expression, val, this.options.model);
         },
 
+        elementValue: function(){
+            var t=this;
+            var result;
+            if(t.$el.is('input[type="radio"]') && t.options.attr === 'data-xt-value'){
+                var $el = t.$el.closest('form');
+                if($el.length === 0){ $el = $(document);}
+                result = $el.find($x.format('input[type="radio"][name="{0}"]:checked', t.$el.attr('name'))).val();
+            }else if(t.$el.is('input[type="checkbox"]') && t.options.attr === 'data-xt-value'){
+                result = t.$el.is(':checked') ? t.$el.val() : undefined;
+            }else{
+                result = t.$el.attr(t.options.attr);
+            }
+            return result;
+        },
+        
         setModelAttr: function (val) {
             var t = this;
             var modLvl = t._modelPath;
@@ -3476,7 +3493,21 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
         setElProp: function (val) {
             var t = this;
             if (t.options.updateElement) {
-                if (t.options.attr === 'value') {
+                if(t.$el.is('input[type="radio"]') && t.options.attr === 'data-xt-value'){
+                    var $el = t.$el.closest('form');
+                    if($el.length === 0){ $el = $(document);}
+                    $el = $el.find($x.format('input[type="radio"][name="{0}"][value="{1}"]', t.$el.attr('name'), val));
+                    $el.prop('checked', 'checked');
+                }else if(t.$el.is('input[type="checkbox"]') && t.options.attr === 'data-xt-value'){
+                    //Using only == to allow for type conversions since this is not getting all of Xintricity's normal
+                    //type handling
+                    if(val == t.$el.val()){
+                        t.$el.prop('checked', 'checked');
+                    }else{
+                        t.$el.prop('checked', '');
+                    }
+                }
+                else if (t.options.attr === 'value') {
                     t.$el.val(val);
                 } else if('data-xt-src' == t.options.attr && t.$el.is('img')){
                     t.$el.attr('src', val)
@@ -3484,7 +3515,7 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
             }
         },
         elChanged: function (evt, ui) {
-            this.setModelAttr($(evt.target).val());
+            this.setModelAttr(this.elementValue());
         },
 
         dispose: function () {
@@ -3786,7 +3817,7 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
         unbindModel: function () {
             var t = this;
             _.each(t._bindingCallbacks, function (elem, idx) {
-                t.unbindModelPath(elem.model, elem.path, elem.callback);
+                t.unbindModelExpression(elem.model, elem.expression, elem.callback);
             });
             this._bindingCallbacks = [];
         },
@@ -3824,6 +3855,7 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
         },
 
         unbindEl: function () {
+            var t = this;
             var $el = $(t.options.el);
             $el.off('change.binding', t.elChanged);
             this._modelPath = null;
@@ -4279,7 +4311,7 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
                 $next.removeAttr('data-xt-if');
                 t.renderInternal(block, $next, t.options.context);
             } else {
-                $next = createPlaceholderNode();
+                $next = $(createPlaceholderNode());
             }
             //Ensure we keep the same number of HTML nodes as the template by creating placeholder text
             //nodes to stand in for all the branches not taken

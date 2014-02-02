@@ -17,7 +17,7 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 (function (root, factory) {
     if (typeof define === 'function' && define.amd) {
-        define('XUtil', ['jQuery', '_'], function ($, _) {
+        define('XUtil', ['jquery', 'underscore'], function ($, _) {
             // Also create a global in case some scripts
             // that are loaded still are looking for
             // a global even when an AMD loader is in use.

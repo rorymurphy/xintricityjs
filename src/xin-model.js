@@ -18,7 +18,7 @@
 (function(root, factory) {
     if (typeof define === 'function' && define.amd) {
         // AMD. Register as an anonymous module.
-        define('XMVVM-Model', ['jQuery', 'underscore', 'XUtil', 'XBase'], function($, _, $x, XBase) {
+        define('XMVVM-Model', ['jquery', 'underscore', 'XUtil', 'XBase'], function($, _, $x, XBase) {
             // Also create a global in case some scripts
             // that are loaded still are looking for
             // a global even when an AMD loader is in use.
@@ -330,7 +330,7 @@
                 
                 fAttrs[name] = fVal;
             });
-            Backbone.Model.prototype.set.apply(this, [fAttrs, options]);
+            return Backbone.Model.prototype.set.apply(this, [fAttrs, options]);
 
         },
         _prepareValue: function(field, value) {
@@ -768,7 +768,7 @@
             var href = $(this).attr('href');
             var protocol = this.protocol + '//';
 
-            if (href.substr(0, baseFull.length) === baseFull && $(this).attr('target') !== '_blank' && $(this).attr('rel') !== 'external') {
+            if (href && href.substr(0, baseFull.length) === baseFull && $(this).attr('target') !== '_blank' && $(this).attr('rel') !== 'external') {
               var tail = href.substr(baseFull.length);
               
               var isRouted = t.canRoute(tail);

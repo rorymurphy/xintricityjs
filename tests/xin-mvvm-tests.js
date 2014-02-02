@@ -251,4 +251,23 @@ Let the tests begin
         console.log(model.Boss().Name());
         equal(model.Boss().Name(), 'Third Value', 'Element Value Change Succeeded!');      
     });
+    
+    test('Test radio button binding', function(){
+        var model = new album({
+           Year: 1985
+        });
+        
+        var vmClass = mvvm.ViewModel.extend({
+           view: 'xin-mvvm-radiobinding-test' 
+        });
+        var vm = new vmClass({
+           model: model 
+        });
+        
+        var $el = vm.render();
+        equal(1, $el.find('input[value="1985"]:checked').length);
+        model.Year(1975);
+        equal(0, $el.find('input[value="1985"]:checked').length);
+        equal(1, $el.find('input[value="1975"]:checked').length);
+    });
 } (jQuery));
