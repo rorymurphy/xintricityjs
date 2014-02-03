@@ -1,9 +1,7 @@
   // Initial Setup
   // -------------
 
-  // Save a reference to the global object (`window` in the browser, `exports`
-  // on the server).
-  var root = this;
+
 
   // Save the previous value of the `Backbone` variable, so that it can be
   // restored later on, if `noConflict` is used.
@@ -18,13 +16,11 @@
   // The top-level namespace. All public Backbone classes and modules will
   // be attached to this. Exported for both the browser and the server.
 
-  // RAM - Setting this to register as __XBase__ since it is not a clean
-  // copy of Backbone anymore, so we need to avoid conflicts
   var Backbone;
   if (typeof exports !== 'undefined') {
     Backbone = exports;
   } else {
-    Backbone = root.__XBase__ = {};
+    Backbone = {};
   }
 
   // Current version of the library. Keep in sync with `package.json`.

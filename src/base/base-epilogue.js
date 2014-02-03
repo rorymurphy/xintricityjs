@@ -3,6 +3,7 @@
   Model.extend = Collection.extend = Router.extend = History.extend = extend;
 
 //This file is used to wrap the customized Backbone build
-}).call(this);
+    return Backbone;
+}));
 
 

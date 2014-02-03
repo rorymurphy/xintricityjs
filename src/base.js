@@ -1,11 +1,24 @@
 //This file is used to wrap the customized Backbone build
 
-(function(){  // Initial Setup
+//(function(){
+
+(function (root, factory) {
+    if (typeof define === 'function' && define.amd) {
+        // AMD. Register as an anonymous module.
+        define('XBase', ['underscore'], function (_) {
+            // Also create a global in case some scripts
+            // that are loaded still are looking for
+            // a global even when an AMD loader is in use.
+            return (root.__XBase__ = factory(root, _));
+        });
+    } else {
+        // Browser globals
+        root.__XBase__ = factory(root, _);
+    }
+}(this, function (root, _) {  // Initial Setup
   // -------------
 
-  // Save a reference to the global object (`window` in the browser, `exports`
-  // on the server).
-  var root = this;
+
 
   // Save the previous value of the `Backbone` variable, so that it can be
   // restored later on, if `noConflict` is used.
@@ -20,13 +33,11 @@
   // The top-level namespace. All public Backbone classes and modules will
   // be attached to this. Exported for both the browser and the server.
 
-  // RAM - Setting this to register as __XBase__ since it is not a clean
-  // copy of Backbone anymore, so we need to avoid conflicts
   var Backbone;
   if (typeof exports !== 'undefined') {
     Backbone = exports;
   } else {
-    Backbone = root.__XBase__ = {};
+    Backbone = {};
   }
 
   // Current version of the library. Keep in sync with `package.json`.
@@ -1608,6 +1619,7 @@ var extend = $x.extendClass
   Model.extend = Collection.extend = Router.extend = History.extend = extend;
 
 //This file is used to wrap the customized Backbone build
-}).call(this);
+    return Backbone;
+}));
 
 
