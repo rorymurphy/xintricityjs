@@ -142,7 +142,7 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
         calculatePosition: function (child, parent) {
             //If the attributes are on the logic block element itself
-            if(child === parent){ return []; }
+            if(child.get(0) === parent.get(0)){ return []; }
 
             child = $(child);
             parent = $(parent);
@@ -342,7 +342,7 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
     var ifNodeType = mvvm.ifNodeType = {
         name: 'if-else',
         type: 'block',
-        selector: '[data-xt-if],[data-xt-elseif],[data-xt-else]',
+        selector: '[data-xt-if],[data-xt-else-if],[data-xt-else]',
         parse: function(node){
             var t = this;
             var result = [];
@@ -361,7 +361,7 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
                 var curr = $el;
 
                 do {
-                    var cond = curr.is('[data-xt-if]')?curr.data('xt-if'):curr.data('xt-elseif');
+                    var cond = curr.is('[data-xt-if]')?curr.data('xt-if'):curr.data('xt-else-if');
                     var bBlock = new templateNode({
                         el: curr,
                         type: ifNodeType,
@@ -374,7 +374,7 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
                     block.branches.push(bBlock);
                     result.push(bBlock);
                     curr = curr.next();
-                }while (curr.is('[data-xt-elseif]'));
+                }while (curr.is('[data-xt-else-if]'));
 
                 if (curr.is('[data-xt-else]')) {
                     block.defaultBranch = new templateNode({
@@ -717,12 +717,16 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
         elementValue: function(){
             var t=this;
             var result;
-            if(t.$el.is('input[type="radio"]') && t.options.attr === 'data-xt-value'){
+            
+            var isValue = t.options.attr === 'data-xt-value';
+            if(t.$el.is('input[type="radio"]') && isValue){
                 var $el = t.$el.closest('form');
                 if($el.length === 0){ $el = $(document);}
                 result = $el.find($x.format('input[type="radio"][name="{0}"]:checked', t.$el.attr('name'))).val();
-            }else if(t.$el.is('input[type="checkbox"]') && t.options.attr === 'data-xt-value'){
+            }else if(t.$el.is('input[type="checkbox"]') && isValue){
                 result = t.$el.is(':checked') ? t.$el.val() : undefined;
+            }else if(t.$el.is('select') && t.options.attr === 'value'){
+                result = t.$el.val();
             }else{
                 result = t.$el.attr(t.options.attr);
             }
@@ -1006,6 +1010,7 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
         initialize: function () {
             var t = this;
             t.setElClasses(t.value());
+            t.$el.removeAttr('data-xt-class-' + t.options.cssClass);
         },
 
         defaults: {
@@ -1170,7 +1175,9 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
                 _.each(val, createOption);
             }
             //If possible, set it back to the value it was before
-            $el.val(currVal);
+            if($el.children('option').length > 1){
+                $el.val(currVal);
+            }
         },
 
         dispose: function () {
@@ -1414,6 +1421,19 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
             });
         },
 
+        renderLocalBindingsAndTriggers: function(block, el, context){
+            var t = this, block = block ? block : this.options.block;
+            var $el = $(el);
+            var nodes = _.filter(block.childNodes, function(b){ return (b.type.type === 'bind' || b.type.type === 'trigger') && b.position.length === 0; });
+            
+            _.each(nodes, function(val, idx){
+               var inst = val.createInstance($el, context);
+               t.childInstances.push(inst);
+               if(inst instanceof tmplBlockInst){
+                 inst.render();  
+               }
+            });
+        },
         setEl: function (el) {
             this.el = el;
             this.$el = $(el);
@@ -1506,7 +1526,9 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
             //Otherwise, render the partial template specified
             if((_.isUndefined(template) || _.isNull(template)) && (t.model instanceof mvvm.ViewModel)){
                 var rplc = t.model.render();
-                t.$el.replaceWith(rplc);
+                rplc.insertBefore(t.$el.eq(0));
+                t.$el.remove();
+                //t.$el.replaceWith(rplc);
                 t.setEl(rplc);                
             }else{
 
@@ -1515,7 +1537,9 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
                 }
                 $x.template(template)('destroy', t.$el);
                 var rplc = $x.template(template)(t.model);
-                t.$el.replaceWith(rplc);
+                replace.insertBefore(t.$el.eq(0));
+                t.$el.remove();
+                //t.$el.replaceWith(rplc);
                 t.setEl(rplc);
             }
         },
@@ -1659,6 +1683,9 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
             var t = this;
             var block = t.options.block;
             t.clear();
+            
+            t.renderLocalBindingsAndTriggers(t.options.block, t.$el, t.options.context);
+            
             if (t.value && t.value.length > 0) {
                 var iterName = block.iterator;
                 var indexerName = _.has(block, 'indexer')?block.indexer:undefined;
