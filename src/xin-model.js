@@ -566,7 +566,7 @@
                 if (lvl instanceof Backbone.Collection) {
                     lvl = lvl.at(parts[i]);
                 } else if (!lvl[parts[i]] && lvl instanceof Backbone.Model && lvl.has(parts[i])) {
-                    lvl = _.bind(backboneGetSet, lvl, parts[i])
+                    lvl = lvl.get(parts[i]);//_.bind(backboneGetSet, lvl, parts[i])
                 } else {
                     //If it is a function and this is not the leaf, or if it is the leaf and the evalVal options
                     //is set, evaluate the result if it's a function

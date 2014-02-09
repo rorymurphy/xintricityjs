@@ -1412,13 +1412,16 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
             var t = this, block = block ? block : this.options.block;
 
             var $el = $(el);
+            var instances = [];
             _.each(block.childNodes, function(val, idx){
                var inst = val.createInstance($el, context);
+               instances.push(inst);
                t.childInstances.push(inst);
                if(inst instanceof tmplBlockInst){
                  inst.render();  
                }
             });
+            return instances;
         },
 
         renderLocalBindingsAndTriggers: function(block, el, context){
@@ -1537,7 +1540,7 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
                 }
                 $x.template(template)('destroy', t.$el);
                 var rplc = $x.template(template)(t.model);
-                replace.insertBefore(t.$el.eq(0));
+                rplc.insertBefore(t.$el.eq(0));
                 t.$el.remove();
                 //t.$el.replaceWith(rplc);
                 t.setEl(rplc);
@@ -1661,6 +1664,8 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
             t.bindModelExpression(t.options.context, mod, t.modelChanged);
             t.value = t.resolveModelExpressionValue(t.options.context, mod);
+            
+            t.blocks = {};
         },
         modelChanged: function (event) {
             //TODO: Update this method so that, if the change is an item being
@@ -1682,7 +1687,10 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
         render: function () {
             var t = this;
             var block = t.options.block;
-            t.clear();
+            //t.clear();
+            //Need to use detach to preserve event handlers, in case the branch
+            //can be reused.
+            t.$el.contents().detach();
             
             t.renderLocalBindingsAndTriggers(t.options.block, t.$el, t.options.context);
             
@@ -1695,6 +1703,18 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
                 t.$el.removeAttr('data-xt-foreach');
                 t.$el.removeAttr('data-xt-iterator');
                 var rerender = function (elem, idx, list) {
+                    //Optimization so that blocks do not have to be re-rendered
+                    //if they have not changed
+                    var cid = elem.cid;
+                    if(cid
+                        && _.has(t.blocks, cid)
+                        && (t.blocks[cid].index === idx
+                            || indexerName === undefined)){
+                       t.$el.append(t.blocks[cid].$el);
+                       _.each(t.blocks[cid].childInstances, function(n){ t.childInstances.push(n); });
+                       delete t.blocks[cid];
+                       return;
+                    }
 
                     //var iterVal = _.last(t.resolveModelPath(elem, t.options.block.options.expression, {allowPartial: false}));
                     var attrs = {};
@@ -1706,16 +1726,36 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
                     var context = t.createContext(attrs, t.options.context);
 
                     var rplc = $(block.el).clone();
-                    t.renderInternal(t.options.block, rplc, context);
+                    var insts = t.renderInternal(t.options.block, rplc, context);
+                    //Optimization - caches a copy of the data used in creating
+                    //the block so it can be reused
+                    if(elem.cid){
+                        t.nextBlocks[elem.cid] = {
+                           index: idx,
+                           item: elem,
+                           $el: rplc.children(),
+                           childInstances: insts
+                        };
+                    }
                     t.$el.append(rplc.children());
                 }
 
+                t.nextBlocks = {};
+                var childInstances = t.childInstances;
+                t.childInstances = [];
                 //Just in case the property is not a XMVVM collection
                 if (t.value instanceof mvvm.Collection) {
                     t.value.forEach(rerender);
                 } else {
                     _.each(t.value, rerender);
                 }
+                _.each(childInstances, function(b){
+                    if(!_.contains(t.childInstances, b)){
+                        b.dispose();
+                    }
+                });
+                t.blocks = t.nextBlocks;
+                delete t.nextBlocks;
             }
 
             if (_.has(block, 'onrender')) {
