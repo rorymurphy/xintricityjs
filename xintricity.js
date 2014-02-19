@@ -2960,6 +2960,7 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
                         if(cssClass !== undefined)
                         { options.cssClass = cssClass; }
                         result.push(new templateNode(options));
+                        $el.remove();
                     });
             node.childNodes = node.childNodes.concat(result);
             return [];
@@ -3403,7 +3404,12 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
                 t.setElProp(t.value());
             }
             if (t.options.updateModel) {
-                this.setModelAttr(t.$el.attr(t.options.attr));
+                var val = t.$el.attr(t.options.attr);
+                //Ensure that a real value was successfully set
+                //before persisting back to model.
+                if(val !== t.options.expression.path){
+                    this.setModelAttr(val);
+                }
             }
         },
 
@@ -3449,7 +3455,7 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
                 result = $el.find($x.format('input[type="radio"][name="{0}"]:checked', t.$el.attr('name'))).val();
             }else if(t.$el.is('input[type="checkbox"]') && isValue){
                 result = t.$el.is(':checked') ? t.$el.val() : undefined;
-            }else if(t.$el.is('select') && t.options.attr === 'value'){
+            }else if(t.options.attr === 'value'){
                 result = t.$el.val();
             }else{
                 result = t.$el.attr(t.options.attr);
@@ -3459,6 +3465,7 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
         
         setModelAttr: function (val) {
             var t = this;
+            
             var modLvl = t._modelPath;
             //If the model path cannot be resolved, throw an error
             if(undefined === modLvl || null === modLvl){
@@ -4346,8 +4353,6 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
             var $next = null;
             if (block) {
                 var $next = block.$el.clone();
-                //Clean up the HTML
-                $next.removeAttr('data-xt-if');
                 t.renderInternal(block, $next, t.options.context);
             } else {
                 $next = $(createPlaceholderNode());
@@ -4360,6 +4365,9 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
             if (node.defaultBranch !== null) {
                 $next = $next.add(createPlaceholderNode());
             }
+
+            //Clean up the HTML
+            $next.removeAttr('data-xt-if').removeAttr('data-xt-else-if').removeAttr('data-xt-else');
 
             if (t.$el.eq(0).prev().length) {
                 $next.insertBefore(t.$el.eq(0));
