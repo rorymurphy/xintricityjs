@@ -676,14 +676,19 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
         initialize: function () {
             var t = this;
+            var curr = t.value();
             if (t.options.updateElement) {
-                t.setElProp(t.value());
+                t.setElProp(curr);
             }
             if (t.options.updateModel) {
-                var val = t.$el.attr(t.options.attr);
+                var val = t.elementValue();
+                var valStr = (val === undefined || val === null) ? '' : val;
                 //Ensure that a real value was successfully set
                 //before persisting back to model.
-                if(val !== t.options.expression.path){
+                //Also, don't bother persisting if it's the same as the current value
+                //(when the current value is converted to a string)
+                curr = (curr === undefined || curr === null) ? '' : curr;
+                if(val !== t.options.expression.path && valStr != (curr + '')){
                     this.setModelAttr(val);
                 }
             }
@@ -1095,6 +1100,9 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
             var t = this;
             var curr = t.$el.val();
             t.createOptions(t.value());
+            if(t.$el.children(':selected').length === 0){
+                t.$el.val(t.$el.children(0).val());
+            }
             var after = t.$el.val();
             if (after != curr) {
                 t.$el.trigger('change');
@@ -1683,7 +1691,7 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
             var mod = t.options.block.expression;
 
             var nextVal = t.resolveModelExpressionValue(t.options.context, mod);
-            var update = (t.value != nextVal) || event === 'add' || event === 'remove';
+            var update = (t.value != nextVal) || event === 'add' || event === 'remove' || event === 'sort' || event === 'reset';
             t.value = nextVal;
 
             if (update) {
