@@ -9,6 +9,9 @@
 
         initialize: function () {
             this.Play = _.bind(this.Play, this);
+            this.on('change:Title', function(evt){
+               var test = 'why'; 
+            });
         },
 
         Play: function () {

@@ -18,7 +18,7 @@
 (function(root, factory) {
     if (typeof define === 'function' && define.amd) {
         // AMD. Register as an anonymous module.
-        define('XMVVM-Model', ['jquery', 'underscore', 'XUtil', 'XBase'], function($, _, $x, XBase) {
+        define('xmvvm-model', ['jquery', 'underscore', 'xutil', 'XBase'], function($, _, $x, XBase) {
             // Also create a global in case some scripts
             // that are loaded still are looking for
             // a global even when an AMD loader is in use.
@@ -456,6 +456,13 @@
         fields: {
             model: Object
         },
+//        constructor: function(options){
+//            if(options.el){
+//                this.$el = $(options.el);
+//                this.el = this.$el.get(0);
+//            }
+//            mvvm.Model.apply(this, arguments);
+//        },
         render: function() {
             var t = this;
             if (t.view) {
@@ -672,7 +679,8 @@
                         break;
                     case 'add':
                     case 'remove':
-
+                    case 'sort':
+                    case 'reset':
                         opts = evt.options;
                         idx = _.indexOf(lvls, evt.collection); //arguments[2] == collection
                         //True if the collection the item being monitored

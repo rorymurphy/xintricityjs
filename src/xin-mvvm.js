@@ -18,11 +18,11 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 (function (root, factory) {
     if (typeof define === 'function' && define.amd) {
         // AMD. Register as an anonymous module.
-        define(['jQuery', 'underscore', 'XUtil', 'XMVVM-Model'], function ($, _, $x, mvvm) {
+        define('xmvvm', ['jquery', 'underscore', 'xutil', 'xmvvm-model', 'xtemplate'], function ($, _, $x, mvvm) {
             // Also create a global in case some scripts
             // that are loaded still are looking for
             // a global even when an AMD loader is in use.
-            return (root.XMVVM = factory($, _, $x, mvvm, XBase));
+            return (root.XMVVM = factory($, _, $x, mvvm));
         });
     } else {
         // Browser globals
@@ -31,7 +31,14 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 }(this, function ($, _, $x, mvvm) {
     'use strict';
 
+//
+// This is a collection of all the node types the parser will use to compile
+// the template.
+//
     mvvm.NodeTypes = [];
+//
+// Template nodes are used to store each branch of leaf that gets parsed
+//
     var templateNode = mvvm.templateNode = function(options){
         var t=this;
         options = _.defaults(options, {
@@ -139,7 +146,11 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
             
             return innerNodes;
         },
-
+        //
+        // Method to calculate the position of a descendant node relative to an
+        // ancestor node.  This is a vital operation to apply the correct logic
+        // to the correct node in the instance of the template.  It uses position
+        // based on the content index and not the 
         calculatePosition: function (child, parent) {
             //If the attributes are on the logic block element itself
             if(child.get(0) === parent.get(0)){ return []; }
@@ -199,6 +210,10 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
         }
     });
 
+//
+// A node type that allows css classes and styles to be applied as the result 
+// of some event
+//
     var cssTriggerNodeType = mvvm.cssTriggerNodeType = {
         name: 'css-trigger',
         type: 'tree', //types: tree, block, bind
@@ -214,10 +229,13 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
                     .each(function(idx, elem){
                         var $el = $(elem);
                         var options = {$el: $el};
+                        
+                        //Check for styles
                         var styles = [];
                         if($el.is('[data-xt-style]')){
                             styles = $el.data('xt-style').split(';');
                         }
+                        //Get the classes
                         var cssClass = $el.data('xt-class');
 
                         options.event = $el.data('xt-event');

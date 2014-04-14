@@ -17,23 +17,23 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 (function (root, factory) {
     if (typeof define === 'function' && define.amd) {
-        define('XUtil', ['jquery', 'underscore'], function ($, _) {
+        define('xutil', ['underscore'], function (_) {
             // Also create a global in case some scripts
             // that are loaded still are looking for
             // a global even when an AMD loader is in use.
-            return (root.XUtil = factory($, _, root));
+            return (root.XUtil = factory(_, root));
         });
     } else {
         // Browser globals
-        root.$x = root.XUtil = factory(root.jQuery, root._, root);
+        root.$x = root.XUtil = factory(root._, root);
     }
-}(this, function ($, _, root) {
+}(this, function (_, root) {
     'use strict';
     //var root = this; //TODO: figure out a proper method to access the global root object inside this context
     
     var __$xOld;
-    if(typeof($x) !== 'undefined'){ __$xOld = $x; }
-    var $x = {};
+    if(typeof(root.$x) !== 'undefined'){ __$xOld = root.$x; }
+    var $x = root.$x = {};
     
     $x.noConflict = function(){
         if(__$xOld){

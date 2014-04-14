@@ -1,7 +1,7 @@
 (function (root, factory) {
     if (typeof define === 'function' && define.amd) {
         // AMD. Register as an anonymous module.
-        define('xin-sample-data', ['exports', 'jQuery', 'underscrore', 'Backbone', 'XUtil', 'XMVVM'], factory);
+        define('xin-sample-data', ['exports', 'jquery', 'underscrore', 'Backbone', 'xutil', 'xmvvm'], factory);
     } else {
         // Browser globals
         root.xin_sample_data = factory({}, root.jQuery, root._, root.Backbone, root.XUtil, root.XMVVM);

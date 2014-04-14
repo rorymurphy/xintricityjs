@@ -18,7 +18,7 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 (function (root, factory) {
     if (typeof define === 'function' && define.amd) {
         // AMD. Register as an anonymous module.
-        define('XTemplate', ['jQuery', 'underscore', 'XUtil'], function ($, _, $x) {
+        define('xtemplate', ['jquery', 'underscore', 'xutil'], function ($, _, $x) {
             // Also create a global in case some scripts
             // that are loaded still are looking for
             // a global even when an AMD loader is in use.

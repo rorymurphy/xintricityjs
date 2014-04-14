@@ -17,23 +17,23 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 (function (root, factory) {
     if (typeof define === 'function' && define.amd) {
-        define('XUtil', ['jquery', 'underscore'], function ($, _) {
+        define('xutil', ['underscore'], function (_) {
             // Also create a global in case some scripts
             // that are loaded still are looking for
             // a global even when an AMD loader is in use.
-            return (root.XUtil = factory($, _, root));
+            return (root.XUtil = factory(_, root));
         });
     } else {
         // Browser globals
-        root.$x = root.XUtil = factory(root.jQuery, root._, root);
+        root.$x = root.XUtil = factory(root._, root);
     }
-}(this, function ($, _, root) {
+}(this, function (_, root) {
     'use strict';
     //var root = this; //TODO: figure out a proper method to access the global root object inside this context
     
     var __$xOld;
-    if(typeof($x) !== 'undefined'){ __$xOld = $x; }
-    var $x = {};
+    if(typeof(root.$x) !== 'undefined'){ __$xOld = root.$x; }
+    var $x = root.$x = {};
     
     $x.noConflict = function(){
         if(__$xOld){
@@ -153,17 +153,17 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 (function (root, factory) {
     if (typeof define === 'function' && define.amd) {
         // AMD. Register as an anonymous module.
-        define('XBase', ['underscore'], function (_) {
+        define('XBase', ['underscore', 'xutil', 'xmvvm'], function (_, $x, mvvm) {
             // Also create a global in case some scripts
             // that are loaded still are looking for
             // a global even when an AMD loader is in use.
-            return (root.__XBase__ = factory(root, _));
+            return (root.__XBase__ = factory(root, _, $x, mvvm));
         });
     } else {
         // Browser globals
-        root.__XBase__ = factory(root, _);
+        root.__XBase__ = factory(root, root._, root.XUtil, root.XMVVM);
     }
-}(this, function (root, _) {  // Initial Setup
+}(this, function (root, _, $x) {  // Initial Setup
   // -------------
 
 
@@ -193,15 +193,7 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
   // Require Underscore, if we're on the server, and it's not already present.
   var _ = root._;
-  if (!_ && (typeof require !== 'undefined')) _ = require('underscore');
-  
-  var $x = root.$x;
-  // RAM - Adding XUtil as a pre-req so I don't need duplicate 'extend' methods
-  if (!$x && (typeof require !== 'undefined')) $x = require('XUtil');
-
-  var mvvm = root.XMVVM;
-  // RAM - Adding XUtil as a pre-req so I don't need duplicate 'extend' methods
-  if (!mvvm && (typeof require !== 'undefined')) mvvm = require('XMVVM');  
+  if (!_ && (typeof require !== 'undefined')) _ = require('underscore'); 
   
 // For Backbone's purposes, jQuery, Zepto, Ender, or My Library (kidding) owns
   // the `$` variable.
@@ -1791,7 +1783,7 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 (function (root, factory) {
     if (typeof define === 'function' && define.amd) {
         // AMD. Register as an anonymous module.
-        define('XTemplate', ['jQuery', 'underscore', 'XUtil'], function ($, _, $x) {
+        define('xtemplate', ['jquery', 'underscore', 'xutil'], function ($, _, $x) {
             // Also create a global in case some scripts
             // that are loaded still are looking for
             // a global even when an AMD loader is in use.
@@ -1936,7 +1928,7 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 (function(root, factory) {
     if (typeof define === 'function' && define.amd) {
         // AMD. Register as an anonymous module.
-        define('XMVVM-Model', ['jquery', 'underscore', 'XUtil', 'XBase'], function($, _, $x, XBase) {
+        define('xmvvm-model', ['jquery', 'underscore', 'xutil', 'XBase'], function($, _, $x, XBase) {
             // Also create a global in case some scripts
             // that are loaded still are looking for
             // a global even when an AMD loader is in use.
@@ -2597,7 +2589,8 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
                         break;
                     case 'add':
                     case 'remove':
-
+                    case 'sort':
+                    case 'reset':
                         opts = evt.options;
                         idx = _.indexOf(lvls, evt.collection); //arguments[2] == collection
                         //True if the collection the item being monitored
@@ -2749,11 +2742,11 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 (function (root, factory) {
     if (typeof define === 'function' && define.amd) {
         // AMD. Register as an anonymous module.
-        define(['jQuery', 'underscore', 'XUtil', 'XMVVM-Model'], function ($, _, $x, mvvm) {
+        define('xmvvm', ['jquery', 'underscore', 'xutil', 'xmvvm-model', 'xtemplate'], function ($, _, $x, mvvm) {
             // Also create a global in case some scripts
             // that are loaded still are looking for
             // a global even when an AMD loader is in use.
-            return (root.XMVVM = factory($, _, $x, mvvm, XBase));
+            return (root.XMVVM = factory($, _, $x, mvvm));
         });
     } else {
         // Browser globals
@@ -2762,7 +2755,14 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 }(this, function ($, _, $x, mvvm) {
     'use strict';
 
+//
+// This is a collection of all the node types the parser will use to compile
+// the template.
+//
     mvvm.NodeTypes = [];
+//
+// Template nodes are used to store each branch of leaf that gets parsed
+//
     var templateNode = mvvm.templateNode = function(options){
         var t=this;
         options = _.defaults(options, {
@@ -2870,7 +2870,11 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
             
             return innerNodes;
         },
-
+        //
+        // Method to calculate the position of a descendant node relative to an
+        // ancestor node.  This is a vital operation to apply the correct logic
+        // to the correct node in the instance of the template.  It uses position
+        // based on the content index and not the 
         calculatePosition: function (child, parent) {
             //If the attributes are on the logic block element itself
             if(child.get(0) === parent.get(0)){ return []; }
@@ -2930,6 +2934,10 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
         }
     });
 
+//
+// A node type that allows css classes and styles to be applied as the result 
+// of some event
+//
     var cssTriggerNodeType = mvvm.cssTriggerNodeType = {
         name: 'css-trigger',
         type: 'tree', //types: tree, block, bind
@@ -2945,10 +2953,13 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
                     .each(function(idx, elem){
                         var $el = $(elem);
                         var options = {$el: $el};
+                        
+                        //Check for styles
                         var styles = [];
                         if($el.is('[data-xt-style]')){
                             styles = $el.data('xt-style').split(';');
                         }
+                        //Get the classes
                         var cssClass = $el.data('xt-class');
 
                         options.event = $el.data('xt-event');

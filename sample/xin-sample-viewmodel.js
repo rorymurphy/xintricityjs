@@ -1,7 +1,7 @@
 (function (root, factory) {
     if (typeof define === 'function' && define.amd) {
         // AMD. Register as an anonymous module.
-        define(['exports', 'jQuery', 'underscrore', 'Backbone', 'XUtil', 'XMVVM', 'xin-sample-data'], factory);
+        define(['exports', 'jquery', 'underscrore', 'Backbone', 'xutil', 'xmvvm', 'xin-sample-data'], factory);
     } else {
         // Browser globals
         root.xin_sample_viewmodel = factory({}, root.jQuery, root._, root.Backbone, root.XUtil, root.XMVVM, root.xin_sample_data);

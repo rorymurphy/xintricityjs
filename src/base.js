@@ -5,17 +5,17 @@
 (function (root, factory) {
     if (typeof define === 'function' && define.amd) {
         // AMD. Register as an anonymous module.
-        define('XBase', ['underscore'], function (_) {
+        define('XBase', ['underscore', 'xutil', 'xmvvm'], function (_, $x, mvvm) {
             // Also create a global in case some scripts
             // that are loaded still are looking for
             // a global even when an AMD loader is in use.
-            return (root.__XBase__ = factory(root, _));
+            return (root.__XBase__ = factory(root, _, $x, mvvm));
         });
     } else {
         // Browser globals
-        root.__XBase__ = factory(root, _);
+        root.__XBase__ = factory(root, root._, root.XUtil, root.XMVVM);
     }
-}(this, function (root, _) {  // Initial Setup
+}(this, function (root, _, $x) {  // Initial Setup
   // -------------
 
 
@@ -45,15 +45,7 @@
 
   // Require Underscore, if we're on the server, and it's not already present.
   var _ = root._;
-  if (!_ && (typeof require !== 'undefined')) _ = require('underscore');
-  
-  var $x = root.$x;
-  // RAM - Adding XUtil as a pre-req so I don't need duplicate 'extend' methods
-  if (!$x && (typeof require !== 'undefined')) $x = require('XUtil');
-
-  var mvvm = root.XMVVM;
-  // RAM - Adding XUtil as a pre-req so I don't need duplicate 'extend' methods
-  if (!mvvm && (typeof require !== 'undefined')) mvvm = require('XMVVM');  
+  if (!_ && (typeof require !== 'undefined')) _ = require('underscore'); 
   
 // For Backbone's purposes, jQuery, Zepto, Ender, or My Library (kidding) owns
   // the `$` variable.

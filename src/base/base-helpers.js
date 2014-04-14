@@ -28,15 +28,7 @@
 
   // Require Underscore, if we're on the server, and it's not already present.
   var _ = root._;
-  if (!_ && (typeof require !== 'undefined')) _ = require('underscore');
-  
-  var $x = root.$x;
-  // RAM - Adding XUtil as a pre-req so I don't need duplicate 'extend' methods
-  if (!$x && (typeof require !== 'undefined')) $x = require('XUtil');
-
-  var mvvm = root.XMVVM;
-  // RAM - Adding XUtil as a pre-req so I don't need duplicate 'extend' methods
-  if (!mvvm && (typeof require !== 'undefined')) mvvm = require('XMVVM');  
+  if (!_ && (typeof require !== 'undefined')) _ = require('underscore'); 
   
 // For Backbone's purposes, jQuery, Zepto, Ender, or My Library (kidding) owns
   // the `$` variable.
