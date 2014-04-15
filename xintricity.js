@@ -2683,7 +2683,7 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
           
           $(document).on('click', 'a:not([data-bypass])', function (evt) {
 
-            var href = $(this).attr('href');
+            var href = this.href;
             var protocol = this.protocol + '//';
 
             if (href && href.substr(0, baseFull.length) === baseFull && $(this).attr('target') !== '_blank' && $(this).attr('rel') !== 'external') {
