@@ -1,4 +1,23 @@
 /*
+@license
+Copyright (c) 2013, Rory Murphy
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
+
+Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.
+Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the documentation and/or other materials provided with the distribution.
+Neither the name of the Rory Murphy nor the names of its contributors may be used to endorse or promote products derived from this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
+CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+*/
+
+/*
 Copyright (c) 2013, Rory Murphy
 All rights reserved.
 
@@ -146,6 +165,7 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 }));
 
 
+
 //This file is used to wrap the customized Backbone build
 
 //(function(){
@@ -163,7 +183,8 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
         // Browser globals
         root.__XBase__ = factory(root, root._, root.XUtil, root.XMVVM);
     }
-}(this, function (root, _, $x) {  // Initial Setup
+}(this, function (root, _, $x) {
+  // Initial Setup
   // -------------
 
 
@@ -276,7 +297,8 @@ var extend = $x.extendClass
       if (error) error(model, resp, options);
       model.trigger('error', model, resp, options);
     };
-  };  // Xintricity.Events
+  };
+  // Xintricity.Events
   // ---------------
 
   // This functionality builds on Backbone.js.  Some pieces have been kept
@@ -479,7 +501,8 @@ var extend = $x.extendClass
 
   // Allow the `Backbone` object to serve as a global event bus, for folks who
   // want global "pubsub" in a convenient place.
-  _.extend(Backbone, Events);// This is a trimmed down version of Backbone.Model
+  _.extend(Backbone, Events);
+// This is a trimmed down version of Backbone.Model
 // There were some areas where Xintricity makes significant
 // changes away from the functionality of Backbone.  In
 // those instances, I am removing the dead Backbone code from the
@@ -832,6 +855,7 @@ var extend = $x.extendClass
       return _[method].apply(_, args);
     };
   });
+
 
   // Backbone.Collection
   // -------------------
@@ -1229,7 +1253,8 @@ var extend = $x.extendClass
       };
       return _[method](this.models, iterator, context);
     };
-  });// Backbone.sync
+  });
+// Backbone.sync
   // -------------
 
   // Override this function to change the manner in which Backbone persists
@@ -1432,7 +1457,8 @@ var extend = $x.extendClass
   // Override this if you'd like to use a different library.
   Backbone.ajax = function() {
     return Backbone.$.ajax.apply(Backbone.$, arguments);
-  };  // Backbone.History
+  };
+  // Backbone.History
   // ----------------
 
   // Handles cross-browser history management, based on either
@@ -1664,6 +1690,7 @@ var extend = $x.extendClass
 
   // Create the default Backbone.history.
   Backbone.history = new History;
+
   // Backbone.Router
   // ---------------
 
@@ -1754,13 +1781,15 @@ var extend = $x.extendClass
       });
     }
 
-  });  // Set up inheritance for the model, collection, router, view and history.
+  });
+  // Set up inheritance for the model, collection, router, view and history.
   // RAM - Removed View.extend, as Xintricity does not have a View object
   Model.extend = Collection.extend = Router.extend = History.extend = extend;
 
 //This file is used to wrap the customized Backbone build
     return Backbone;
 }));
+
 
 
 /*
@@ -1908,16 +1937,17 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
     return XTemplate;
 
 }));
+
 /*
  Copyright (c) 2013, Rory Murphy
  All rights reserved.
- 
+
  Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
- 
+
  Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.
  Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the documentation and/or other materials provided with the distribution.
  Neither the name of the Rory Murphy nor the names of its contributors may be used to endorse or promote products derived from this software without specific prior written permission.
- 
+
  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
  THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
  CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
@@ -1936,7 +1966,7 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
         });
     } else {
         // Browser globals
-        root.XMVVM = factory($, _, $x, __XBase__);
+        root.XMVVM = factory(root.jQuery, root._, root.XUtil, root.__XBase__);
     }
 }(this, function($, _, $x, Backbone) {
     'use strict';
@@ -1975,13 +2005,13 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
         if (_.isFunction(options)) {
             options = {type: options};
         }
-        
+
         _.defaults(options, {
            persist: true,
            type: Object
         });
         options['name'] = key;
-        
+
         t.fields[key] = options;
 //        if (!_.has(this.fields, key)) {
 //            t.fields[key] = options;
@@ -2022,7 +2052,7 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
     // Defined the Xintricity event in the modified Backbone library, but want
     // it to be part of the XMVVM object
     mvvm.Event = Backbone.Event;
-    
+
     var collEvtMap = {
         add: ['model', 'collection', 'options'],
         remove: ['model', 'collection', 'options'],
@@ -2038,8 +2068,8 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
     var modelEvtMap = {
         add: ['model', 'collection', 'options'],
         remove: ['model', 'collection', 'options'],
-        destroy: ['model', 'collection', 'options'],        
-        
+        destroy: ['model', 'collection', 'options'],
+
         change: ['model', 'options'],
         'change:': ['model','value','options'],
 
@@ -2058,7 +2088,7 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
     //Maps legacy Backbone events to Xintricity event objects
     var mapEvent = function(evtMap, event) {
-        var reqArgCount = 2; //This will be used for certain offsets in the arguments 
+        var reqArgCount = 2; //This will be used for certain offsets in the arguments
         var args = Array.prototype.slice.call(arguments);
         var evt;
 
@@ -2079,15 +2109,15 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
         if(undefined !== map){
             var newArgs = {};
             _.each(map, function(val, idx){
-               newArgs[val] = args[idx + reqArgCount]; 
+               newArgs[val] = args[idx + reqArgCount];
             });
 
             evt = new mvvm.Event(newArgs);
         }
-        
+
         return evt;
     };
-    
+
     var trigger = function(parentType, eventAttrName, eventMap, event) {
         var reqArgCount = 4;
         var args = Array.prototype.slice.call(arguments);
@@ -2110,15 +2140,15 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
             newArgs[eventAttrName] = this;
             evt = new mvvm.Event(newArgs);
             evtArgs = [event].concat([evt]);
-            
+
         } else {
             //The event was triggered using Xintricity syntax
             evtArgs = Array.prototype.slice.call(arguments, reqArgCount - 1);
         }
-        
+
         parentType.prototype.trigger.apply(this, evtArgs);
-    };    
-    
+    };
+
     mvvm.Model = Backbone.Model.extend({
         constructor: function(attributes, options) {
             var t = this;
@@ -2167,13 +2197,13 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
             _.each(atts, function(val, key){
                 //If persistence is turned off for this field, ignore it
                 if(_.has(t.fields, key) && ! t.fields[key].persist){return;}
-                
+
                 if(val instanceof mvvm.Model
                     || val instanceof mvvm.Collection){
                     atts[key] = val.toJSON();
                 }
             });
-            
+
             return atts;
         },
         trigger: _.partial(trigger, Backbone.Model, 'model', modelEvtMap),
@@ -2194,7 +2224,7 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
             var fAttrs = _.clone(attrs);
             _.each(attrs, function(value, name, list) {
                 var field, valid, fVal;
-                
+
                 fVal=value;
                 if (fields !== null && _.has(fields, name)) {
                     field = fields[name];
@@ -2237,7 +2267,7 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
                     }
                     fVal.on('all', retrigger, t.cid + name);
                 }
-                
+
                 fAttrs[name] = fVal;
             });
             return Backbone.Model.prototype.set.apply(this, [fAttrs, options]);
@@ -2314,14 +2344,14 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
     });
     mvvm.Model.extend = function(protoProps, staticProps) {
         var t = this;
-        
+
         //fields get special treatment
         if(protoProps.fields){
             var fields = protoProps.fields;
             delete protoProps.fields;
         }
         var obj = extend.call(t, protoProps, staticProps);
-        
+
         if(fields){ protoProps.fields = fields; }
         if (t.prototype.fields) {
             _.each(t.prototype.fields, function(val, key) {
@@ -2364,19 +2394,27 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
     mvvm.ViewModel = mvvm.Model.extend({
         view: null,
         fields: {
-            model: Object
+            model: Object,
         },
-//        constructor: function(options){
-//            if(options.el){
-//                this.$el = $(options.el);
-//                this.el = this.$el.get(0);
-//            }
-//            mvvm.Model.apply(this, arguments);
-//        },
+        constructor: function(options){
+            if(options && options.container){
+                this.container = $(options.container);
+                delete options.container;
+            }
+            mvvm.Model.apply(this, arguments);
+        },
         render: function() {
             var t = this;
             if (t.view) {
+                t.trigger('rendering', new mvvm.Event());
+
                 t.$el = $x.template(t.view)(t.model(), {context: {viewmodel: t}});
+
+                if(t.container){
+                    t.container.append(t.$el);
+                }
+
+                t.trigger('rendered', new mvvm.Event());
             }
             return t.$el;
         },
@@ -2399,7 +2437,7 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
     };
 
     mvvm.Filters = _.extend({}, {
-       isFalse: function(val){ return val === false; }, 
+       isFalse: function(val){ return val === false; },
        isNull: _.isNull,
        isUndefined: _.isUndefined,
        isObject: _.isObject,
@@ -2412,7 +2450,7 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
        add1: function(val){ return val + 1; },
        subtract1: function(val){ return val - 1; }
     });
-    
+
     mvvm.BindingExpression = function(args){
         if(args){_.extend(this, args);}
     };
@@ -2428,7 +2466,7 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
             return result;
         }
     });
-    
+
     mvvm.ModelNavMixins = {
         splitModelPath: function(path) {
             var matches;
@@ -2451,7 +2489,7 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
             options = _.defaults(options, {
                 applyFilter: options.evalVal
             });
-            
+
             var t = this;
             var modelLevels = [];
             var modLvl = [model];
@@ -2528,6 +2566,7 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
         },
         _applyBindExpression: function(expression, value, context) {
             var transform;
+            var orig = context;
             if (_.has(expression, 'filter') && _.isString(expression.filter)) {
                 context = context.clone();
                 context.createField('Filter', Object);
@@ -2539,7 +2578,7 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
                     filter = _.last(filter);
                 }
                 if (_.isFunction(filter)) {
-                    value = filter(value);
+                    value = filter(value, orig);
                 } else {
                     throw 'Invalid filter, not a function';
                 }
@@ -2674,13 +2713,13 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
               startHistory: true,
               pushState: true
           });
-          
+
           if(options.startHistory){
               Backbone.history.start({pushState: options.pushState, root: options.root});
           }
-          
+
           var baseFull = location.protocol+'//'+location.hostname+(location.port ? ':'+location.port: '') + options.root;
-          
+
           $(document).on('click', 'a:not([data-bypass])', function (evt) {
 
             var href = this.href;
@@ -2688,29 +2727,29 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
             if (href && href.substr(0, baseFull.length) === baseFull && $(this).attr('target') !== '_blank' && $(this).attr('rel') !== 'external') {
               var tail = href.substr(baseFull.length);
-              
+
               var isRouted = t.canRoute(tail);
               if(isRouted){
-                  evt.preventDefault(); 
+                  evt.preventDefault();
                   t.navigate(tail, {trigger: true});
               }else if(tail == Backbone.history.fragment){
                   evt.preventDefault();
               }
             }
           });
-        },        
-        
+        },
+
         canRoute: function(fragment) {
-          var t = this;          
+          var t = this;
           if (!Backbone.History.started) return false;
-          var url = this.root + (fragment = Backbone.history.getFragment(fragment || ''));
-      
+          var url = Backbone.history.root + (fragment = Backbone.history.getFragment(fragment || ''));
+
 
           var pathStripper = /[?#].*$/;
           fragment = fragment.replace(pathStripper, '');
-          
+
           if(fragment === Backbone.history.fragment){ return false; }
-          
+
           fragment = Backbone.history.getFragment(fragment);
           return _.any(Backbone.history.handlers, function(handler) {
             if (handler.route.test(fragment)) {
@@ -2784,9 +2823,9 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
         },
         createInstance: function($el, context){
             return this.type.createInstance(this, $el, context);
-        } 
+        }
     });
-    
+
     var resolveElement = function ($el, indices) {
             var curr = $el;
             _.each(indices, function (val) {
@@ -2795,7 +2834,7 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
             return curr;
     }
-        
+
     var templateParser = mvvm.templateParser = function(){
         this.initialize();
     };
@@ -2867,14 +2906,14 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
                     t.parseFunctions[val.name](node, elem);
                 });
             });
-            
+
             return innerNodes;
         },
         //
         // Method to calculate the position of a descendant node relative to an
         // ancestor node.  This is a vital operation to apply the correct logic
         // to the correct node in the instance of the template.  It uses position
-        // based on the content index and not the 
+        // based on the content index and not the
         calculatePosition: function (child, parent) {
             //If the attributes are on the logic block element itself
             if(child.get(0) === parent.get(0)){ return []; }
@@ -2935,7 +2974,7 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
     });
 
 //
-// A node type that allows css classes and styles to be applied as the result 
+// A node type that allows css classes and styles to be applied as the result
 // of some event
 //
     var cssTriggerNodeType = mvvm.cssTriggerNodeType = {
@@ -2953,7 +2992,7 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
                     .each(function(idx, elem){
                         var $el = $(elem);
                         var options = {$el: $el};
-                        
+
                         //Check for styles
                         var styles = [];
                         if($el.is('[data-xt-style]')){
@@ -2972,7 +3011,7 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
                             _.each(styles, function (val) {
                                 var vals = val.split(':');
                                 if(2 !== vals.length){return;}
-                                options.styles[vals[0].trim()] = vals[1].trim(); 
+                                options.styles[vals[0].trim()] = vals[1].trim();
                             });
                         }
                         if(cssClass !== undefined)
@@ -2994,7 +3033,7 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
             if(_.has(node, 'cssClass'))
             { options.cssClass = node.cssClass; }
 
-            return new mvvm.StyleTrigger(options);      
+            return new mvvm.StyleTrigger(options);
         }
     };
     mvvm.NodeTypes.push(cssTriggerNodeType);
@@ -3037,7 +3076,7 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
             if(_.has(node, 'data'))
             { options.data = node.data; }
 
-            return new mvvm.ActionTrigger(options);  
+            return new mvvm.ActionTrigger(options);
         }
     };
     mvvm.NodeTypes.push(actionTriggerNodeType);
@@ -3178,7 +3217,7 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
                     template: partial,
                     model: model
                 }));
-            });   
+            });
         },
         createInstance: function(node, $el, context){
             var replace = resolveElement($el, node.position);
@@ -3205,7 +3244,7 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
             _.each(elem.attributes, function (attr) {
                 var name = attr.name;
                 //ignore attribute bindings for xintricity attributes, element ids and elements types
-                //as these are not allowed. 
+                //as these are not allowed.
                 if ((name.substr(0, 8) === 'data-xt-'
                         && 'data-xt-src' !== name
                         && 'data-xt-value' !== name)
@@ -3222,7 +3261,7 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
                         attr: name
                     }));
                 }
-            });        
+            });
         },
         createInstance: function(node, $el, context){
             var target = resolveElement($el, node.position);
@@ -3262,7 +3301,7 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
                         cssClass: name.substr(prefix.length)
                     }));
                 }
-            });        
+            });
         },
         createInstance: function(node, $el, context){
             var target = resolveElement($el, node.position);
@@ -3298,7 +3337,7 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
             _.each($el.get(0).attributes, function (attr) {
                 //Ignore attribute value bindings
                 if(_.isObject(t.parseBinding(attr.value))){ return; }
-                
+
                 var binding = textBindingNodeType.createBinding.call(t, $el, node.$el, attr.value, attr.name);
                 if (binding !== null) {
                     node.childNodes.push(binding);
@@ -3308,7 +3347,7 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
         createBinding: function(el, parent, text, attrName){
             var t = this;
             var $el = $(el);
-            
+
             var matches = [];
             var match = null;
             while (match = textBindingNodeType.textBindingPattern.exec(text)) { matches.push(match[0]); }
@@ -3463,14 +3502,14 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
             if (_.isFunction(val)) {
                 val = val();
             }
-            
+
             return this._applyBindExpression(this.options.expression, val, this.options.model);
         },
 
         elementValue: function(){
             var t=this;
             var result;
-            
+
             var isValue = t.options.attr === 'data-xt-value';
             if(t.$el.is('input[type="radio"]') && isValue){
                 var $el = t.$el.closest('form');
@@ -3485,10 +3524,10 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
             }
             return result;
         },
-        
+
         setModelAttr: function (val) {
             var t = this;
-            
+
             var modLvl = t._modelPath;
             //If the model path cannot be resolved, throw an error
             if(undefined === modLvl || null === modLvl){
@@ -3634,7 +3673,7 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
             var html=false;
             _.each(t.options.paths, function (p) {
                 var v = t.value(p);
-                if(undefined == v){ v=''; }                     
+                if(undefined == v){ v=''; }
                 else{ v = v.toString();}
                 if(_.has(p, 'html') && p.html === 'true'){
                     vals.push(v);
@@ -3645,7 +3684,7 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
                 }
             });
             var text = $x.format.apply(this, vals).replace(/&#123;/, '{').replace(/&#125;/, '}');
-            
+
             if(_.has(t.options, 'attribute')){
                 $(t.options.el).attr(t.options.attribute, t.escapeEntities(text));
             }else if(html){
@@ -3655,10 +3694,12 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
                 var elems = t.options.el;
                 if(!(elems instanceof NodeList)){
                     elems = [t.options.el];
+                }else{
+                  elems = [].slice.call(elems);
                 }
-                
-                node.innerHTML = '<div>' + text + '</div>';
-                node = node.children;
+
+                node.innerHTML = text;
+                node = [].slice.call(node.childNodes);
                 _.each(node, function(val){
                    parent.insertBefore(val, elems[0]);
                 });
@@ -3667,14 +3708,14 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
                 });
                 //var node = $('<div>' + text + '</div>');
                 //$el.replaceWith(node);
-                
+
                 //Only execute scripts if the node has already been added to the page, otherwise
                 //it is up to the script executing the template to do so.
                 if($(node).parents('html').length > 0){
                     //TODO: Possibly add an "unsafe" switch that user has to set if they want scripts executed.
                     $(node).filter('script').each(function(){
                         $.globalEval(this.text || this.textContent || this.innerHTML || '');
-                    });                    
+                    });
                 }
 
                 t.options.el = node;
@@ -3687,11 +3728,11 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
             return unsafe.replace(/&<>"/g, function(str){return mvvm.TextNodeBinding.HtmlEntities[str];});
             //return unsafe.toString().replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
         },
-        
+
         escapeEntities: function(unsafe){
             return unsafe.replace(/[^\x20-\x7E]/g, function(str){ return mvvm.TextNodeBinding.EntityCodes[str] ? '&' + mvvm.TextNodeBinding.EntityCodes[str] + ';' : str });
         },
-                
+
         dispose: function () {
             var t = this, paths = this.options.paths;
 
@@ -3700,7 +3741,7 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
             });
             t._modelPaths = {};
             t._callbacks = {};
-            
+
             delete t._callbacks;
             delete t._modelPaths;
         }
@@ -3792,7 +3833,7 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
             if (_.isFunction(val)) {
                 val = val();
             }
-            
+
             return this._applyBindExpression(this.options.expression, val, this.options.model);
         },
 
@@ -3985,7 +4026,7 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
             var nEvt = new mvvm.Event({event: t.options.event});
             t.onTrigger(nEvt);
             if(nEvt.isDefaultPrevented())
-            { evt.preventDefault(); }           
+            { evt.preventDefault(); }
         },
         bind: function () {
             var t = this;
@@ -4099,7 +4140,7 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
     $x.extend(mvvm.StyleTrigger.prototype, mvvm.ModelNavMixins);
 
     mvvm.Actions = _.extend({}, {
-        
+
     });
     mvvm.ActionTrigger = mvvm.Trigger.extend({
         defaults: {
@@ -4126,7 +4167,7 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
                 if (hasValue && _.has(value, 'path')) {
                     evt.data = t.resolveModelExpressionValue(t.options.context, value);
                 }
-                
+
                 action(evt);
             }
         }
@@ -4175,7 +4216,7 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
                instances.push(inst);
                t.childInstances.push(inst);
                if(inst instanceof tmplBlockInst){
-                 inst.render();  
+                 inst.render();
                }
             });
             return instances;
@@ -4185,12 +4226,12 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
             var t = this, block = block ? block : this.options.block;
             var $el = $(el);
             var nodes = _.filter(block.childNodes, function(b){ return (b.type.type === 'bind' || b.type.type === 'trigger') && b.position.length === 0; });
-            
+
             _.each(nodes, function(val, idx){
                var inst = val.createInstance($el, context);
                t.childInstances.push(inst);
                if(inst instanceof tmplBlockInst){
-                 inst.render();  
+                 inst.render();
                }
             });
         },
@@ -4280,7 +4321,7 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
             var t = this;
             var block = t.options.block;
             t.clear();
-            
+
             var template = block.template;
             //If the model is a ViewModel, we should call it's render method
             //Otherwise, render the partial template specified
@@ -4289,7 +4330,7 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
                 rplc.insertBefore(t.$el.eq(0));
                 t.$el.remove();
                 //t.$el.replaceWith(rplc);
-                t.setEl(rplc);                
+                t.setEl(rplc);
             }else{
 
                 if(_.isObject(template)){
@@ -4310,7 +4351,7 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
             var template = block.template;
             if((_.isUndefined(template) || _.isNull(template)) && (t.model instanceof mvvm.ViewModel)){
                 t.model.dispose();
-            }            
+            }
         }
     });
 
@@ -4422,7 +4463,7 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
             t.bindModelExpression(t.options.context, mod, t.modelChanged);
             t.value = t.resolveModelExpressionValue(t.options.context, mod);
-            
+
             t.blocks = {};
         },
         modelChanged: function (event) {
@@ -4449,9 +4490,9 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
             //Need to use detach to preserve event handlers, in case the branch
             //can be reused.
             t.$el.contents().detach();
-            
+
             t.renderLocalBindingsAndTriggers(t.options.block, t.$el, t.options.context);
-            
+
             if (t.value && t.value.length > 0) {
                 var iterName = block.iterator;
                 var indexerName = _.has(block, 'indexer')?block.indexer:undefined;
@@ -4476,7 +4517,7 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
                     //var iterVal = _.last(t.resolveModelPath(elem, t.options.block.options.expression, {allowPartial: false}));
                     var attrs = {};
-                    
+
                     if(indexerName !== undefined){
                         attrs[indexerName] = idx;
                     }
@@ -4538,18 +4579,24 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
     $x.extend(mvvm.Template.prototype, {
         render: function () {
             var t = this;
-            var inst = new TemplateBlockInst({
+            t.instance = new TemplateBlockInst({
                 block: t.block,
                 context: t.context
             });
-            inst.render();
-            var $el = inst.$el;
-            $el.data('template-id', t.tmplID);
-            return $el.children();
+            t.instance.render();
+            t.$el = t.instance.$el.children();
+            t.$el.first().data('template-id', t.tmplID);
+            return t.$el;
         },
 
         dispose: function () {
-
+          var t = this;
+          //Even though the template is being disposed, need to replace it with
+          //an empty text node in case it was a partial template, so that the
+          //position counts for bindings don't change.
+          t.$el.replaceWith(document.createTextNode(''));
+          t.instance.dispose();
+          t.$el.remove();
         }
     });
 
@@ -4591,7 +4638,7 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
                     if (arguments.length !== 2) { throw "Invalid number of arguments"; }
                     $el = arguments[1];
                     if (!($el instanceof $)) { throw "Invalid argument (2), jQuery expected"; }
-                    if ($el.data('template-id')) {
+                    if ($el.first().data('template-id')) {
                         templateInstances[$el.data('template-id')].dispose();
                     }
                     break;
@@ -4603,7 +4650,8 @@ ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
     if (typeof (test) !== 'undefined') {
         mvvm.templateInstances = templateInstances;
     }
-    
+
     return mvvm;
 }));
 
+if( typeof define === 'function' && define.amd ){ define('xintricity', ['xutil', 'xmvvm'], function () { }); }

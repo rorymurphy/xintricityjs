@@ -1,4 +1,5 @@
 /*
+@license
 Copyright (c) 2013, Rory Murphy
 All rights reserved.
 

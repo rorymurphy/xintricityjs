@@ -1,13 +1,13 @@
 /*
  Copyright (c) 2013, Rory Murphy
  All rights reserved.
- 
+
  Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
- 
+
  Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.
  Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the documentation and/or other materials provided with the distribution.
  Neither the name of the Rory Murphy nor the names of its contributors may be used to endorse or promote products derived from this software without specific prior written permission.
- 
+
  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
  THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
  CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
@@ -26,7 +26,7 @@
         });
     } else {
         // Browser globals
-        root.XMVVM = factory($, _, $x, __XBase__);
+        root.XMVVM = factory(root.jQuery, root._, root.XUtil, root.__XBase__);
     }
 }(this, function($, _, $x, Backbone) {
     'use strict';
@@ -65,13 +65,13 @@
         if (_.isFunction(options)) {
             options = {type: options};
         }
-        
+
         _.defaults(options, {
            persist: true,
            type: Object
         });
         options['name'] = key;
-        
+
         t.fields[key] = options;
 //        if (!_.has(this.fields, key)) {
 //            t.fields[key] = options;
@@ -112,7 +112,7 @@
     // Defined the Xintricity event in the modified Backbone library, but want
     // it to be part of the XMVVM object
     mvvm.Event = Backbone.Event;
-    
+
     var collEvtMap = {
         add: ['model', 'collection', 'options'],
         remove: ['model', 'collection', 'options'],
@@ -128,8 +128,8 @@
     var modelEvtMap = {
         add: ['model', 'collection', 'options'],
         remove: ['model', 'collection', 'options'],
-        destroy: ['model', 'collection', 'options'],        
-        
+        destroy: ['model', 'collection', 'options'],
+
         change: ['model', 'options'],
         'change:': ['model','value','options'],
 
@@ -148,7 +148,7 @@
 
     //Maps legacy Backbone events to Xintricity event objects
     var mapEvent = function(evtMap, event) {
-        var reqArgCount = 2; //This will be used for certain offsets in the arguments 
+        var reqArgCount = 2; //This will be used for certain offsets in the arguments
         var args = Array.prototype.slice.call(arguments);
         var evt;
 
@@ -169,15 +169,15 @@
         if(undefined !== map){
             var newArgs = {};
             _.each(map, function(val, idx){
-               newArgs[val] = args[idx + reqArgCount]; 
+               newArgs[val] = args[idx + reqArgCount];
             });
 
             evt = new mvvm.Event(newArgs);
         }
-        
+
         return evt;
     };
-    
+
     var trigger = function(parentType, eventAttrName, eventMap, event) {
         var reqArgCount = 4;
         var args = Array.prototype.slice.call(arguments);
@@ -200,15 +200,15 @@
             newArgs[eventAttrName] = this;
             evt = new mvvm.Event(newArgs);
             evtArgs = [event].concat([evt]);
-            
+
         } else {
             //The event was triggered using Xintricity syntax
             evtArgs = Array.prototype.slice.call(arguments, reqArgCount - 1);
         }
-        
+
         parentType.prototype.trigger.apply(this, evtArgs);
-    };    
-    
+    };
+
     mvvm.Model = Backbone.Model.extend({
         constructor: function(attributes, options) {
             var t = this;
@@ -257,13 +257,13 @@
             _.each(atts, function(val, key){
                 //If persistence is turned off for this field, ignore it
                 if(_.has(t.fields, key) && ! t.fields[key].persist){return;}
-                
+
                 if(val instanceof mvvm.Model
                     || val instanceof mvvm.Collection){
                     atts[key] = val.toJSON();
                 }
             });
-            
+
             return atts;
         },
         trigger: _.partial(trigger, Backbone.Model, 'model', modelEvtMap),
@@ -284,7 +284,7 @@
             var fAttrs = _.clone(attrs);
             _.each(attrs, function(value, name, list) {
                 var field, valid, fVal;
-                
+
                 fVal=value;
                 if (fields !== null && _.has(fields, name)) {
                     field = fields[name];
@@ -327,7 +327,7 @@
                     }
                     fVal.on('all', retrigger, t.cid + name);
                 }
-                
+
                 fAttrs[name] = fVal;
             });
             return Backbone.Model.prototype.set.apply(this, [fAttrs, options]);
@@ -404,14 +404,14 @@
     });
     mvvm.Model.extend = function(protoProps, staticProps) {
         var t = this;
-        
+
         //fields get special treatment
         if(protoProps.fields){
             var fields = protoProps.fields;
             delete protoProps.fields;
         }
         var obj = extend.call(t, protoProps, staticProps);
-        
+
         if(fields){ protoProps.fields = fields; }
         if (t.prototype.fields) {
             _.each(t.prototype.fields, function(val, key) {
@@ -454,19 +454,27 @@
     mvvm.ViewModel = mvvm.Model.extend({
         view: null,
         fields: {
-            model: Object
+            model: Object,
         },
-//        constructor: function(options){
-//            if(options.el){
-//                this.$el = $(options.el);
-//                this.el = this.$el.get(0);
-//            }
-//            mvvm.Model.apply(this, arguments);
-//        },
+        constructor: function(options){
+            if(options && options.container){
+                this.container = $(options.container);
+                delete options.container;
+            }
+            mvvm.Model.apply(this, arguments);
+        },
         render: function() {
             var t = this;
             if (t.view) {
+                t.trigger('rendering', new mvvm.Event());
+
                 t.$el = $x.template(t.view)(t.model(), {context: {viewmodel: t}});
+
+                if(t.container){
+                    t.container.append(t.$el);
+                }
+
+                t.trigger('rendered', new mvvm.Event());
             }
             return t.$el;
         },
@@ -489,7 +497,7 @@
     };
 
     mvvm.Filters = _.extend({}, {
-       isFalse: function(val){ return val === false; }, 
+       isFalse: function(val){ return val === false; },
        isNull: _.isNull,
        isUndefined: _.isUndefined,
        isObject: _.isObject,
@@ -502,7 +510,7 @@
        add1: function(val){ return val + 1; },
        subtract1: function(val){ return val - 1; }
     });
-    
+
     mvvm.BindingExpression = function(args){
         if(args){_.extend(this, args);}
     };
@@ -518,7 +526,7 @@
             return result;
         }
     });
-    
+
     mvvm.ModelNavMixins = {
         splitModelPath: function(path) {
             var matches;
@@ -541,7 +549,7 @@
             options = _.defaults(options, {
                 applyFilter: options.evalVal
             });
-            
+
             var t = this;
             var modelLevels = [];
             var modLvl = [model];
@@ -618,6 +626,7 @@
         },
         _applyBindExpression: function(expression, value, context) {
             var transform;
+            var orig = context;
             if (_.has(expression, 'filter') && _.isString(expression.filter)) {
                 context = context.clone();
                 context.createField('Filter', Object);
@@ -629,7 +638,7 @@
                     filter = _.last(filter);
                 }
                 if (_.isFunction(filter)) {
-                    value = filter(value);
+                    value = filter(value, orig);
                 } else {
                     throw 'Invalid filter, not a function';
                 }
@@ -764,13 +773,13 @@
               startHistory: true,
               pushState: true
           });
-          
+
           if(options.startHistory){
               Backbone.history.start({pushState: options.pushState, root: options.root});
           }
-          
+
           var baseFull = location.protocol+'//'+location.hostname+(location.port ? ':'+location.port: '') + options.root;
-          
+
           $(document).on('click', 'a:not([data-bypass])', function (evt) {
 
             var href = this.href;
@@ -778,29 +787,29 @@
 
             if (href && href.substr(0, baseFull.length) === baseFull && $(this).attr('target') !== '_blank' && $(this).attr('rel') !== 'external') {
               var tail = href.substr(baseFull.length);
-              
+
               var isRouted = t.canRoute(tail);
               if(isRouted){
-                  evt.preventDefault(); 
+                  evt.preventDefault();
                   t.navigate(tail, {trigger: true});
               }else if(tail == Backbone.history.fragment){
                   evt.preventDefault();
               }
             }
           });
-        },        
-        
+        },
+
         canRoute: function(fragment) {
-          var t = this;          
+          var t = this;
           if (!Backbone.History.started) return false;
-          var url = this.root + (fragment = Backbone.history.getFragment(fragment || ''));
-      
+          var url = Backbone.history.root + (fragment = Backbone.history.getFragment(fragment || ''));
+
 
           var pathStripper = /[?#].*$/;
           fragment = fragment.replace(pathStripper, '');
-          
+
           if(fragment === Backbone.history.fragment){ return false; }
-          
+
           fragment = Backbone.history.getFragment(fragment);
           return _.any(Backbone.history.handlers, function(handler) {
             if (handler.route.test(fragment)) {
@@ -811,4 +820,3 @@
     });
     return mvvm;
 }));
-
